@@ -15,6 +15,14 @@ export type Spread = {
   icon: string;
 };
 
+export type Space = {
+  id: string;
+  name: string;
+  icon: string;
+  isDefault?: boolean;
+  createdAt: string;
+};
+
 export type Card = {
   id: string;
   name: string;
@@ -24,6 +32,7 @@ export type Card = {
   glyph: string;
   isCustom?: boolean;
   illustration?: string;
+  spaceId?: string;
 };
 
 export type Reading = {
@@ -32,6 +41,7 @@ export type Reading = {
   revealed: number;
   question?: string;
   spreadId: string;
+  spaceId?: string;
 };
 
 export type HistoryCard = {
@@ -42,6 +52,7 @@ export type HistoryCard = {
   hue: string;
   glyph: string;
   illustration?: string;
+  isDeleted?: boolean;
 };
 
 export type HistoryRecord = {
@@ -49,6 +60,8 @@ export type HistoryRecord = {
   cards: HistoryCard[];
   question?: string;
   spreadId?: string;
+  spaceId?: string;
+  spaceName?: string;
   archived?: boolean;
   archiveReason?: "completed" | "partial" | "expired";
 };

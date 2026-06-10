@@ -7,22 +7,63 @@ import { DeckManager } from "./components/DeckManager";
 import { HistoryPanel } from "./components/HistoryPanel";
 import { ShareModal } from "./components/ShareModal";
 import { generateShareImage } from "./components/ShareModal";
+import { SpaceManager } from "./components/SpaceSelector";
 import { loadTheme, saveTheme, applyTheme } from "./data/themeStore";
-import { loadCustomCards, saveCustomCards, getAllCards, getCardById, addCustomCard, updateCustomCard, deleteCustomCard, isCardInReading } from "./data/cardStore";
-import { loadReading, saveReading, clearReading, createReading, revealNextCard, isReadingComplete } from "./data/readingStore";
-import { loadHistory, saveHistory, clearHistory, addReadingToHistory } from "./data/historyStore";
+import {
+  loadCustomCards,
+  saveCustomCards,
+  getAllCards,
+  getCardById,
+  addCustomCard,
+  updateCustomCard,
+  deleteCustomCard,
+  isCardInReading,
+  getCardsForSpace,
+  deleteCustomCardsBySpaceId,
+  hasAnyCardInReading,
+} from "./data/cardStore";
+import {
+  loadReading,
+  saveReading,
+  clearReading,
+  createReading,
+  revealNextCard,
+  isReadingComplete,
+  clearReadingIfFromSpace,
+} from "./data/readingStore";
+import {
+  loadHistory,
+  saveHistory,
+  clearHistory,
+  addReadingToHistory,
+} from "./data/historyStore";
 import { getSpreadById, getPositions, getPositionCount } from "./data/spreadStore";
+import {
+  loadSpaces,
+  saveSpaces,
+  loadCurrentSpaceId,
+  saveCurrentSpaceId,
+  createSpace,
+  addSpace,
+  updateSpace,
+  deleteSpace,
+  getSpaceById,
+} from "./data/spaceStore";
 import { checkAndArchive } from "./data/archiveService";
 import { todayKey } from "./data/dateUtils";
-import { DEFAULT_SPREAD_ID } from "./data/constants";
-import type { ThemeId, Reading, Card, HistoryRecord, ArchiveResult } from "./types";
+import { DEFAULT_SPREAD_ID, DEFAULT_SPACE_ID, DELETED_CARD_PLACEHOLDER } from "./data/constants";
+import type { ThemeId, Reading, Card, HistoryRecord, ArchiveResult, Space } from "./types";
 
 export default function App() {
   const [theme, setTheme] = useState<ThemeId>(loadTheme);
   const [reading, setReading] = useState<Reading | null>(loadReading);
   const [customCards, setCustomCards] = useState<Card[]>(loadCustomCards);
   const [history, setHistory] = useState<HistoryRecord[]>(loadHistory);
+  const [spaces, setSpaces] = useState<Space[]>(loadSpaces);
+  const [currentSpaceId, setCurrentSpaceId] = useState<string>(loadCurrentSpaceId);
+
   const [showDeckManager, setShowDeckManager] = useState(false);
+  const [showSpaceManager, setShowSpaceManager] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
@@ -45,6 +86,14 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    saveSpaces(spaces);
+  }, [spaces]);
+
+  useEffect(() => {
+    saveCurrentSpaceId(currentSpaceId);
+  }, [currentSpaceId]);
+
   const handleThemeChange = useCallback((themeId: ThemeId) => {
     setTheme(themeId);
     applyTheme(themeId);
@@ -54,14 +103,29 @@ export default function App() {
   const currentSpread = getSpreadById(reading?.spreadId ?? selectedSpreadId);
   const currentPositions = currentSpread.positions;
   const totalCards = currentPositions.length;
+  const currentSpace = getSpaceById(spaces, currentSpaceId) ?? spaces[0];
+  const readingSpace = reading?.spaceId
+    ? getSpaceById(spaces, reading.spaceId)
+    : undefined;
+
+  const allCardsForCurrentSpace = useMemo(
+    () => getCardsForSpace(customCards, currentSpaceId),
+    [customCards, currentSpaceId]
+  );
 
   const allCards = useMemo(() => getAllCards(customCards), [customCards]);
   const selectedCards = useMemo(() => {
     if (!reading) return [];
+    const cardsToUse = reading.spaceId
+      ? getCardsForSpace(customCards, reading.spaceId)
+      : allCards;
     return reading.cardIds
-      .map((id) => getCardById(id, allCards))
+      .map((id) => {
+        const card = getCardById(id, cardsToUse);
+        return card ?? (DELETED_CARD_PLACEHOLDER as Card);
+      })
       .filter((card): card is Card => card !== undefined);
-  }, [reading, allCards]);
+  }, [reading, customCards, allCards]);
 
   useEffect(() => {
     saveCustomCards(customCards);
@@ -74,17 +138,40 @@ export default function App() {
   }, [reading]);
 
   useEffect(() => {
-    if (reading && isReadingComplete(reading, totalCards) && selectedCards.length === totalCards) {
+    if (
+      reading &&
+      isReadingComplete(reading, totalCards) &&
+      selectedCards.length === totalCards
+    ) {
       const positions = getPositions(reading.spreadId);
-      const updatedHistory = addReadingToHistory(history, reading, selectedCards, positions);
+      const spaceForHistory = reading.spaceId
+        ? getSpaceById(spaces, reading.spaceId)
+        : undefined;
+      const cardsToUse = reading.spaceId
+        ? getCardsForSpace(customCards, reading.spaceId)
+        : allCards;
+      const updatedHistory = addReadingToHistory(
+        history,
+        reading,
+        cardsToUse,
+        positions,
+        spaceForHistory
+      );
       saveHistory(updatedHistory);
       setHistory(updatedHistory);
     }
-  }, [reading?.revealed, reading, selectedCards, totalCards]);
+  }, [reading?.revealed, reading, selectedCards, totalCards, history, customCards, allCards, spaces]);
 
   function handleStartReading() {
     const positionsCount = getPositionCount(selectedSpreadId);
-    const next = createReading(allCards, positionsCount, selectedSpreadId, question);
+    const cardsForSpace = getCardsForSpace(customCards, currentSpaceId);
+    const next = createReading(
+      cardsForSpace,
+      positionsCount,
+      selectedSpreadId,
+      currentSpaceId,
+      question
+    );
     setReading(next);
     setQuestion(next.question ?? "");
     saveReading(next);
@@ -120,6 +207,48 @@ export default function App() {
   function handleClearHistory() {
     clearHistory();
     setHistory([]);
+  }
+
+  function handleAddSpace(name: string, icon: string) {
+    const space = createSpace(name, icon);
+    setSpaces((prev) => addSpace(prev, space));
+    setCurrentSpaceId(space.id);
+  }
+
+  function handleUpdateSpace(space: Space) {
+    setSpaces((prev) => updateSpace(prev, space));
+  }
+
+  function handleDeleteSpace(spaceId: string): boolean {
+    if (spaceId === DEFAULT_SPACE_ID) {
+      return false;
+    }
+    const hasCardsInReading = reading
+      ? hasAnyCardInReading(spaceId, customCards, reading.cardIds)
+      : false;
+    setCustomCards((prev) => deleteCustomCardsBySpaceId(prev, spaceId));
+    setSpaces((prev) => deleteSpace(prev, spaceId));
+
+    if (reading) {
+      const updatedReading = clearReadingIfFromSpace(reading, spaceId);
+      if (updatedReading === null) {
+        setReading(null);
+      }
+    }
+
+    if (currentSpaceId === spaceId) {
+      setCurrentSpaceId(DEFAULT_SPACE_ID);
+    }
+
+    if (hasCardsInReading) {
+      setShowSpaceManager(false);
+    }
+
+    return true;
+  }
+
+  function handleSpaceChange(spaceId: string) {
+    setCurrentSpaceId(spaceId);
   }
 
   async function handleGenerateShare(): Promise<string> {
@@ -163,11 +292,16 @@ export default function App() {
 
       <ReadingSection
         selectedSpreadId={selectedSpreadId}
+        selectedSpaceId={currentSpaceId}
+        spaces={spaces}
         question={question}
         hasReading={!!reading}
+        readingSpaceId={reading?.spaceId}
         onSpreadChange={setSelectedSpreadId}
+        onSpaceChange={handleSpaceChange}
         onQuestionChange={setQuestion}
         onStartReading={handleStartReading}
+        onManageSpaces={() => setShowSpaceManager(true)}
       />
 
       {reading && (
@@ -181,22 +315,29 @@ export default function App() {
         />
       )}
 
-      {reading && isReadingComplete(reading, totalCards) && selectedCards.length === totalCards && (
-        <section className="share-section">
-          <button
-            className="share-button"
-            onClick={handleShareClick}
-            disabled={isGeneratingShare}
-          >
-            {isGeneratingShare ? "生成中..." : "✨ 生成分享图"}
-          </button>
-        </section>
-      )}
+      {reading &&
+        isReadingComplete(reading, totalCards) &&
+        selectedCards.length === totalCards && (
+          <section className="share-section">
+            <button
+              className="share-button"
+              onClick={handleShareClick}
+              disabled={isGeneratingShare}
+            >
+              {isGeneratingShare ? "生成中..." : "✨ 生成分享图"}
+            </button>
+          </section>
+        )}
 
-      <DeckSection allCards={allCards} onManageClick={() => setShowDeckManager(true)} />
+      <DeckSection
+        allCards={allCardsForCurrentSpace}
+        currentSpace={currentSpace}
+        onManageClick={() => setShowDeckManager(true)}
+      />
 
       <HistoryPanel
         history={history}
+        spaces={spaces}
         isOpen={showHistory}
         onToggle={() => setShowHistory(!showHistory)}
         onClearHistory={handleClearHistory}
@@ -204,12 +345,22 @@ export default function App() {
 
       <DeckManager
         customCards={customCards}
+        spaces={spaces}
         readingCardIds={readingCardIds}
         isOpen={showDeckManager}
         onClose={() => setShowDeckManager(false)}
         onAddCard={handleAddCard}
         onUpdateCard={handleUpdateCard}
         onDeleteCard={handleDeleteCard}
+      />
+
+      <SpaceManager
+        spaces={spaces}
+        isOpen={showSpaceManager}
+        onClose={() => setShowSpaceManager(false)}
+        onAddSpace={handleAddSpace}
+        onUpdateSpace={handleUpdateSpace}
+        onDeleteSpace={handleDeleteSpace}
       />
 
       <ShareModal

@@ -1,8 +1,9 @@
-import type { Reading, HistoryRecord, ArchiveResult } from "../types";
+import type { Reading, HistoryRecord, ArchiveResult, Space } from "../types";
 import { loadRawReading, clearReading } from "./readingStore";
 import { loadHistory, saveHistory, addRecord, createArchivedRecord } from "./historyStore";
 import { getPositions, getSpreadById } from "./spreadStore";
 import { getAllCards, loadCustomCards } from "./cardStore";
+import { loadSpaces, getSpaceById } from "./spaceStore";
 import { todayKey, isToday } from "./dateUtils";
 
 export function checkAndArchive(): ArchiveResult {
@@ -28,6 +29,10 @@ export function checkAndArchive(): ArchiveResult {
   const allCards = getAllCards(customCards);
   const positions = getPositions(rawReading.spreadId);
   const history = loadHistory();
+  const spaces = loadSpaces();
+  const space = rawReading.spaceId
+    ? getSpaceById(spaces, rawReading.spaceId)
+    : undefined;
 
   const totalCards = positions.length;
   const revealedCount = rawReading.revealed;
@@ -39,20 +44,20 @@ export function checkAndArchive(): ArchiveResult {
     discarded = 1;
     clearReading();
   } else if (revealedCount >= totalCards) {
-    const record = createArchivedRecord(rawReading, allCards, positions, "completed");
+    const record = createArchivedRecord(rawReading, allCards, positions, "completed", space);
     const updatedHistory = addRecord(history, record);
     saveHistory(updatedHistory);
     archivedRecords = [record];
     clearReading();
   } else {
-    const record = createArchivedRecord(rawReading, allCards, positions, "partial");
+    const record = createArchivedRecord(rawReading, allCards, positions, "partial", space);
     const updatedHistory = addRecord(history, record);
     saveHistory(updatedHistory);
     archivedRecords = [record];
     clearReading();
   }
 
-  const message = buildArchiveMessage(archivedRecords, discarded, rawReading);
+  const message = buildArchiveMessage(archivedRecords, discarded, rawReading, space);
 
   return {
     archived: archivedRecords,
@@ -64,19 +69,21 @@ export function checkAndArchive(): ArchiveResult {
 function buildArchiveMessage(
   archived: HistoryRecord[],
   discarded: number,
-  reading: Reading
+  reading: Reading,
+  space?: Space
 ): string {
   const spread = getSpreadById(reading.spreadId);
   const dateLabel = reading.date;
+  const spaceLabel = space ? `「${space.name}」` : "";
 
   if (discarded > 0) {
-    return `${dateLabel} 的 ${spread.name} 未翻开任何牌，已自动清除`;
+    return `${spaceLabel}${dateLabel} 的 ${spread.name} 未翻开任何牌，已自动清除`;
   }
 
   if (archived.length > 0) {
     const record = archived[0];
     const reasonText = record.archiveReason === "completed" ? "已完成" : "部分翻开";
-    return `${dateLabel} 的 ${spread.name}（${reasonText}）已归档到历史记录`;
+    return `${spaceLabel}${dateLabel} 的 ${spread.name}（${reasonText}）已归档到历史记录`;
   }
 
   return "归档完成";

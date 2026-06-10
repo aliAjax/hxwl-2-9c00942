@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { CardGlyph } from "./CardGlyph";
-import type { Card } from "../types";
-import { DEFAULT_CARDS } from "../data/constants";
-import { createEmptyCustomCard, validateCard, checkStorageCapacity } from "../data/cardStore";
+import type { Card, Space } from "../types";
+import { DEFAULT_CARDS, DEFAULT_SPACE_ID } from "../data/constants";
+import {
+  createEmptyCustomCard,
+  validateCard,
+  checkStorageCapacity,
+  getCustomCardsForSpace,
+} from "../data/cardStore";
 import { compressImage, isImageFile } from "../data/imageUtils";
 
 type DeckManagerProps = {
   customCards: Card[];
+  spaces: Space[];
   readingCardIds: string[];
   isOpen: boolean;
   onClose: () => void;
@@ -17,6 +23,7 @@ type DeckManagerProps = {
 
 export function DeckManager({
   customCards,
+  spaces,
   readingCardIds,
   isOpen,
   onClose,
@@ -27,11 +34,15 @@ export function DeckManager({
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [isNewCard, setIsNewCard] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [selectedSpaceId, setSelectedSpaceId] = useState<string>(DEFAULT_SPACE_ID);
 
   if (!isOpen) return null;
 
+  const currentSpace = spaces.find((s) => s.id === selectedSpaceId) ?? spaces[0];
+  const spaceCustomCards = getCustomCardsForSpace(customCards, selectedSpaceId);
+
   const handleAddCard = () => {
-    setEditingCard(createEmptyCustomCard());
+    setEditingCard(createEmptyCustomCard(selectedSpaceId));
     setIsNewCard(true);
   };
 
@@ -130,15 +141,36 @@ export function DeckManager({
         </div>
 
         {!editingCard ? (
-          <CardList
-            customCards={customCards}
-            onAddCard={handleAddCard}
-            onEditCard={handleEditCard}
-            onDeleteCard={handleDeleteCard}
-          />
+          <>
+            <div className="space-tabs">
+              {spaces.map((space) => (
+                <button
+                  key={space.id}
+                  className={`space-tab ${
+                    selectedSpaceId === space.id ? "active" : ""
+                  }`}
+                  onClick={() => setSelectedSpaceId(space.id)}
+                >
+                  <span className="space-tab-icon">{space.icon}</span>
+                  <span className="space-tab-name">{space.name}</span>
+                  {space.isDefault && (
+                    <span className="space-tab-badge">默认</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <CardList
+              customCards={spaceCustomCards}
+              currentSpace={currentSpace}
+              onAddCard={handleAddCard}
+              onEditCard={handleEditCard}
+              onDeleteCard={handleDeleteCard}
+            />
+          </>
         ) : (
           <CardForm
             card={editingCard}
+            spaces={spaces}
             isNewCard={isNewCard}
             isUploadingImage={isUploadingImage}
             onCardChange={setEditingCard}
@@ -155,25 +187,35 @@ export function DeckManager({
 
 function CardList({
   customCards,
+  currentSpace,
   onAddCard,
   onEditCard,
   onDeleteCard,
 }: {
   customCards: Card[];
+  currentSpace?: Space;
   onAddCard: () => void;
   onEditCard: (card: Card) => void;
   onDeleteCard: (cardId: string) => void;
 }) {
+  const showAddButton = !currentSpace?.isDefault || true;
+
   return (
     <>
       <div className="deck-actions">
-        <button className="add-card-button" onClick={onAddCard}>
+        <button className="add-card-button" onClick={onAddCard} disabled={!showAddButton}>
           + 新增自定义牌
         </button>
+        {currentSpace && (
+          <span className="deck-space-info">
+            {currentSpace.icon} 「{currentSpace.name}」空间
+            {currentSpace.isDefault && " - 包含所有默认牌"}
+          </span>
+        )}
       </div>
 
       <div className="card-list">
-        <h3 className="card-section-title">默认牌组</h3>
+        <h3 className="card-section-title">默认牌组（所有空间共享）</h3>
         {DEFAULT_CARDS.map((card) => (
           <div key={card.id} className="card-item">
             <CardGlyph card={card} className="card-item-glyph" size="small" />
@@ -190,7 +232,14 @@ function CardList({
           </div>
         ))}
 
-        <h3 className="card-section-title">自定义牌组</h3>
+        <h3 className="card-section-title">
+          自定义牌组
+          {currentSpace && !currentSpace.isDefault && (
+            <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>
+              （{currentSpace.name}专属）
+            </span>
+          )}
+        </h3>
         {customCards.length === 0 ? (
           <p className="empty-custom">还没有自定义牌，点击上方按钮添加</p>
         ) : (
@@ -222,6 +271,7 @@ function CardList({
 
 function CardForm({
   card,
+  spaces,
   isNewCard,
   isUploadingImage,
   onCardChange,
@@ -231,6 +281,7 @@ function CardForm({
   onCancel,
 }: {
   card: Card;
+  spaces: Space[];
   isNewCard: boolean;
   isUploadingImage: boolean;
   onCardChange: (card: Card) => void;
@@ -239,9 +290,22 @@ function CardForm({
   onSave: () => void;
   onCancel: () => void;
 }) {
+  const cardSpace = spaces.find((s) => s.id === card.spaceId);
+
   return (
     <div className="card-form">
       <h3>{isNewCard ? "新增自定义牌" : "编辑自定义牌"}</h3>
+
+      {cardSpace && (
+        <div className="form-row">
+          <label>所属空间</label>
+          <div className="card-space-display">
+            <span className="card-space-icon">{cardSpace.icon}</span>
+            <span className="card-space-name">{cardSpace.name}</span>
+            {cardSpace.isDefault && <span className="default-badge">默认</span>}
+          </div>
+        </div>
+      )}
 
       <div className="form-row">
         <label>牌名</label>

@@ -1,4 +1,4 @@
-import type { Theme, Spread, Card } from "../types";
+import type { Theme, Spread, Card, Space, HistoryCard } from "../types";
 
 export const THEMES: Theme[] = [
   { id: "night-market", name: "夜市", icon: "🌙" },
@@ -49,12 +49,44 @@ export const DEFAULT_CARDS: Card[] = [
   { id: "bell", name: "铜铃", keyword: "提醒", meaning: "一个重复出现的小信号，今天值得被认真对待。", hue: "#c99a35", glyph: "铃" }
 ];
 
+export const DEFAULT_SPACE_ID = "default";
+
+export const DEFAULT_SPACE: Space = {
+  id: DEFAULT_SPACE_ID,
+  name: "默认空间",
+  icon: "🏠",
+  isDefault: true,
+  createdAt: new Date().toISOString(),
+};
+
+export const PRESET_SPACES: Space[] = [
+  { id: "work", name: "工作", icon: "💼", createdAt: new Date().toISOString() },
+  { id: "relationship", name: "关系", icon: "💕", createdAt: new Date().toISOString() },
+  { id: "inspiration", name: "灵感", icon: "💡", createdAt: new Date().toISOString() },
+];
+
+export const DELETED_CARD_PLACEHOLDER: HistoryCard & Card = {
+  id: "deleted-placeholder",
+  position: "",
+  name: "（此牌已删除）",
+  keyword: "已删除",
+  meaning: "这张牌所在的牌组空间已被删除。",
+  hue: "#666666",
+  glyph: "✕",
+  isDeleted: true,
+};
+
 export const STORAGE_KEYS = {
   reading: "hxwl-2-reading",
   customCards: "hxwl-2-custom-cards",
   history: "hxwl-2-history",
   theme: "hxwl-2-theme",
+  spaces: "hxwl-2-spaces",
+  currentSpaceId: "hxwl-2-current-space",
+  migrationVersion: "hxwl-2-migration-version",
 } as const;
+
+export const CURRENT_MIGRATION_VERSION = 2;
 
 export const EMPTY_CARD_TEMPLATE: Card = {
   id: "",

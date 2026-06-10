@@ -1,25 +1,40 @@
 import { getAllSpreads, getSpreadById } from "../data/spreadStore";
+import { SpaceSelector } from "./SpaceSelector";
+import type { Space } from "../types";
 
 type ReadingSectionProps = {
   selectedSpreadId: string;
+  selectedSpaceId: string;
+  spaces: Space[];
   question: string;
   hasReading: boolean;
+  readingSpaceId?: string;
   onSpreadChange: (spreadId: string) => void;
+  onSpaceChange: (spaceId: string) => void;
   onQuestionChange: (question: string) => void;
   onStartReading: () => void;
+  onManageSpaces: () => void;
 };
 
 export function ReadingSection({
   selectedSpreadId,
+  selectedSpaceId,
+  spaces,
   question,
   hasReading,
+  readingSpaceId,
   onSpreadChange,
+  onSpaceChange,
   onQuestionChange,
   onStartReading,
+  onManageSpaces,
 }: ReadingSectionProps) {
   const spreads = getAllSpreads();
-  const currentSpread = getSpreadById(selectedSpreadId);
+  const currentSpread = getSpreadById(hasReading ? readingSpaceId ? selectedSpreadId : selectedSpreadId : selectedSpreadId);
   const positionCount = currentSpread.positions.length;
+  const readingSpace = readingSpaceId
+    ? spaces.find((s) => s.id === readingSpaceId)
+    : undefined;
 
   return (
     <section className="counter">
@@ -29,13 +44,22 @@ export function ReadingSection({
         <p>牌面会保存到今天结束，明天再来时摊主会洗出新的结果。</p>
         {!hasReading && (
           <>
+            <SpaceSelector
+              spaces={spaces}
+              currentSpaceId={selectedSpaceId}
+              disabled={hasReading}
+              onSpaceChange={onSpaceChange}
+              onManageSpaces={onManageSpaces}
+            />
             <div className="spread-section">
               <label className="question-label">选择牌阵</label>
               <div className="spread-options">
                 {spreads.map((spread) => (
                   <button
                     key={spread.id}
-                    className={`spread-option ${selectedSpreadId === spread.id ? "active" : ""}`}
+                    className={`spread-option ${
+                      selectedSpreadId === spread.id ? "active" : ""
+                    }`}
                     onClick={() => onSpreadChange(spread.id)}
                     disabled={hasReading}
                   >
@@ -63,7 +87,11 @@ export function ReadingSection({
           </>
         )}
         {hasReading && (
-          <ReadingDisplay spreadId={selectedSpreadId} question={question} />
+          <ReadingDisplay
+            spreadId={selectedSpreadId}
+            question={question}
+            space={readingSpace}
+          />
         )}
       </div>
       <div className="counter-right">
@@ -73,11 +101,7 @@ export function ReadingSection({
             <span>共{positionCount}张牌</span>
           </div>
         )}
-        <button
-          onClick={onStartReading}
-          disabled={hasReading}
-          className="draw-button"
-        >
+        <button onClick={onStartReading} disabled={hasReading} className="draw-button">
           {hasReading ? "今日已抽牌" : "开始抽牌"}
         </button>
       </div>
@@ -85,7 +109,15 @@ export function ReadingSection({
   );
 }
 
-function ReadingDisplay({ spreadId, question }: { spreadId: string; question?: string }) {
+function ReadingDisplay({
+  spreadId,
+  question,
+  space,
+}: {
+  spreadId: string;
+  question?: string;
+  space?: Space;
+}) {
   const spread = getSpreadById(spreadId);
   const totalCards = spread.positions.length;
 
@@ -95,6 +127,11 @@ function ReadingDisplay({ spreadId, question }: { spreadId: string; question?: s
         <span className="spread-display-icon">{spread.icon}</span>
         <span className="spread-display-name">{spread.name}</span>
         <span className="spread-display-count">{totalCards}张牌</span>
+        {space && (
+          <span className="spread-display-space">
+            {space.icon} {space.name}
+          </span>
+        )}
       </div>
       {question && (
         <div className="question-display">

@@ -1,9 +1,31 @@
-import type { HistoryRecord, Reading, Card, HistoryCard } from "../types";
-import { STORAGE_KEYS } from "./constants";
+import type { HistoryRecord, Reading, Card, HistoryCard, Space } from "../types";
+import {
+  STORAGE_KEYS,
+  DEFAULT_SPACE_ID,
+  CURRENT_MIGRATION_VERSION,
+  DELETED_CARD_PLACEHOLDER,
+} from "./constants";
 import { safeGetItem, safeSetItem, safeRemoveItem } from "./storage";
 
 export function loadHistory(): HistoryRecord[] {
-  return safeGetItem<HistoryRecord[]>(STORAGE_KEYS.history, []);
+  const raw = safeGetItem<HistoryRecord[] | null>(STORAGE_KEYS.history, null);
+  if (!raw) {
+    return [];
+  }
+  const migratedVersion = safeGetItem<number>(STORAGE_KEYS.migrationVersion, 0);
+  if (migratedVersion < CURRENT_MIGRATION_VERSION) {
+    const migrated = raw.map((record) => ({
+      ...record,
+      spaceId: record.spaceId || DEFAULT_SPACE_ID,
+      cards: record.cards.map((card) => ({
+        ...card,
+        isDeleted: card.isDeleted || false,
+      })),
+    }));
+    safeSetItem(STORAGE_KEYS.history, migrated);
+    return migrated;
+  }
+  return raw;
 }
 
 export function saveHistory(history: HistoryRecord[]): boolean {
@@ -29,24 +51,31 @@ export function addReadingToHistory(
   history: HistoryRecord[],
   reading: Reading,
   cards: Card[],
-  positions: string[]
+  positions: string[],
+  space?: Space
 ): HistoryRecord[] {
-  const record = readingToHistoryRecord(reading, cards, positions);
+  const record = readingToHistoryRecord(reading, cards, positions, space);
   return addRecord(history, record);
 }
 
 export function readingToHistoryRecord(
   reading: Reading,
   cards: Card[],
-  positions: string[]
+  positions: string[],
+  space?: Space
 ): HistoryRecord {
   const cardMap = new Map(cards.map((c) => [c.id, c]));
   const revealedCardIds = reading.cardIds.slice(0, reading.revealed);
 
   const historyCards = revealedCardIds
-    .map((cardId, index): HistoryCard | null => {
+    .map((cardId, index): HistoryCard => {
       const card = cardMap.get(cardId);
-      if (!card) return null;
+      if (!card) {
+        return {
+          ...DELETED_CARD_PLACEHOLDER,
+          position: positions[index] || "",
+        };
+      }
       const historyCard: HistoryCard = {
         position: positions[index] || "",
         name: card.name,
@@ -59,12 +88,13 @@ export function readingToHistoryRecord(
         historyCard.illustration = card.illustration;
       }
       return historyCard;
-    })
-    .filter((c): c is HistoryCard => c !== null);
+    });
 
   const record: HistoryRecord = {
     date: reading.date,
     cards: historyCards,
+    spaceId: reading.spaceId || DEFAULT_SPACE_ID,
+    spaceName: space?.name,
   };
   if (reading.question) {
     record.question = reading.question;
@@ -79,12 +109,20 @@ export function createArchivedRecord(
   reading: Reading,
   cards: Card[],
   positions: string[],
-  reason: "completed" | "partial" | "expired"
+  reason: "completed" | "partial" | "expired",
+  space?: Space
 ): HistoryRecord {
-  const baseRecord = readingToHistoryRecord(reading, cards, positions);
+  const baseRecord = readingToHistoryRecord(reading, cards, positions, space);
   return {
     ...baseRecord,
     archived: true,
     archiveReason: reason,
   } satisfies HistoryRecord;
+}
+
+export function getHistoryBySpace(
+  history: HistoryRecord[],
+  spaceId: string
+): HistoryRecord[] {
+  return history.filter((record) => record.spaceId === spaceId || !record.spaceId);
 }

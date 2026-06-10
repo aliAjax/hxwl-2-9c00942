@@ -1,9 +1,29 @@
 import type { Card } from "../types";
-import { DEFAULT_CARDS, STORAGE_KEYS, EMPTY_CARD_TEMPLATE } from "./constants";
+import {
+  DEFAULT_CARDS,
+  STORAGE_KEYS,
+  EMPTY_CARD_TEMPLATE,
+  DEFAULT_SPACE_ID,
+  CURRENT_MIGRATION_VERSION,
+} from "./constants";
 import { safeGetItem, safeSetItem } from "./storage";
 
 export function loadCustomCards(): Card[] {
-  return safeGetItem<Card[]>(STORAGE_KEYS.customCards, []);
+  const raw = safeGetItem<Card[] | null>(STORAGE_KEYS.customCards, null);
+  if (!raw) {
+    return [];
+  }
+  const migratedVersion = safeGetItem<number>(STORAGE_KEYS.migrationVersion, 0);
+  if (migratedVersion < CURRENT_MIGRATION_VERSION) {
+    const migrated = raw.map((card) => ({
+      ...card,
+      spaceId: card.spaceId || DEFAULT_SPACE_ID,
+    }));
+    safeSetItem(STORAGE_KEYS.customCards, migrated);
+    safeSetItem(STORAGE_KEYS.migrationVersion, CURRENT_MIGRATION_VERSION);
+    return migrated;
+  }
+  return raw;
 }
 
 export function saveCustomCards(cards: Card[]): boolean {
@@ -14,14 +34,28 @@ export function getAllCards(customCards: Card[]): Card[] {
   return [...DEFAULT_CARDS, ...customCards];
 }
 
+export function getCardsForSpace(customCards: Card[], spaceId: string): Card[] {
+  const spaceCustomCards = customCards.filter(
+    (card) => !card.spaceId || card.spaceId === spaceId
+  );
+  return [...DEFAULT_CARDS, ...spaceCustomCards];
+}
+
+export function getCustomCardsForSpace(customCards: Card[], spaceId: string): Card[] {
+  return customCards.filter(
+    (card) => !card.spaceId || card.spaceId === spaceId
+  );
+}
+
 export function getCardById(cardId: string, allCards: Card[]): Card | undefined {
   return allCards.find((card) => card.id === cardId);
 }
 
-export function createEmptyCustomCard(): Card {
+export function createEmptyCustomCard(spaceId: string = DEFAULT_SPACE_ID): Card {
   return {
     ...EMPTY_CARD_TEMPLATE,
     id: `custom-${Date.now()}`,
+    spaceId,
   };
 }
 
@@ -37,8 +71,23 @@ export function deleteCustomCard(cards: Card[], cardId: string): Card[] {
   return cards.filter((c) => c.id !== cardId);
 }
 
+export function deleteCustomCardsBySpaceId(cards: Card[], spaceId: string): Card[] {
+  return cards.filter((c) => c.spaceId !== spaceId);
+}
+
 export function isCardInReading(cardId: string, cardIds: string[]): boolean {
   return cardIds.includes(cardId);
+}
+
+export function hasAnyCardInReading(
+  spaceId: string,
+  customCards: Card[],
+  readingCardIds: string[]
+): boolean {
+  const spaceCardIds = customCards
+    .filter((c) => c.spaceId === spaceId)
+    .map((c) => c.id);
+  return spaceCardIds.some((id) => readingCardIds.includes(id));
 }
 
 export function validateCard(card: Card): { valid: boolean; error?: string } {

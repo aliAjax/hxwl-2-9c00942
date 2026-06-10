@@ -1818,3 +1818,333 @@ h1 {
   margin-bottom: 20px;
   font-size: 1rem;
 }
+
+.space-selector-section {
+  margin-top: 16px;
+}
+
+.space-selector-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.space-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.space-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--surface-light);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.space-option:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.space-option.active {
+  background: var(--surface-active);
+  border-color: var(--accent);
+  color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--glow-shadow);
+}
+
+.space-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.space-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.space-name {
+  white-space: nowrap;
+}
+
+.space-default-badge {
+  background: var(--surface-accent);
+  color: var(--accent);
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 800;
+}
+
+.space-manage-button {
+  background: transparent;
+  border: 1px solid var(--border-strongest);
+  color: var(--accent);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.space-manage-button:hover:not(:disabled) {
+  background: var(--surface-accent);
+  border-color: var(--accent);
+}
+
+.space-manage-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.space-hint {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 8px 0 0;
+  line-height: 1.5;
+  transition: color 0.35s ease;
+}
+
+.space-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 12px 24px 0;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.space-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: -1px;
+}
+
+.space-tab:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.space-tab.active {
+  background: var(--surface);
+  border-color: var(--border-color);
+  color: var(--accent);
+}
+
+.space-tab-icon {
+  font-size: 1rem;
+}
+
+.space-tab-name {
+  white-space: nowrap;
+}
+
+.space-tab-badge {
+  background: var(--surface-accent);
+  color: var(--accent);
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 800;
+}
+
+.deck-space-info {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 12px;
+}
+
+.deck-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.deck-space-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: var(--surface-accent-light);
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: all 0.35s ease;
+}
+
+.deck-space-icon {
+  font-size: 1rem;
+}
+
+.space-item-glyph {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.icon-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.icon-option {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--surface-light);
+  border: 1px solid var(--border-medium);
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: grid;
+  place-items: center;
+}
+
+.icon-option:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  transform: scale(1.05);
+}
+
+.icon-option.active {
+  background: var(--surface-active);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--glow-shadow);
+}
+
+.icon-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.card-space-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--surface-accent-light);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.card-space-icon {
+  font-size: 1.1rem;
+}
+
+.card-space-name {
+  color: var(--text-primary);
+}
+
+.space-form-hint {
+  padding: 12px 16px;
+  background: var(--info);
+  border: 1px solid var(--info-border);
+  border-radius: 8px;
+  color: var(--info-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.history-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.history-item-space {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--surface);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-light);
+}
+
+.history-card.deleted {
+  opacity: 0.7;
+  border: 1px dashed var(--border-medium);
+}
+
+.history-card-deleted-hint {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.spread-display-space {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  background: var(--surface-light);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: 1px solid var(--border-light);
+}
+
+@media (max-width: 560px) {
+  .space-tabs {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .space-selector-wrapper {
+    flex-direction: column;
+  }
+
+  .space-manage-button {
+    align-self: flex-end;
+  }
+}

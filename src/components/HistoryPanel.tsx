@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { CardGlyph } from "./CardGlyph";
-import type { HistoryRecord } from "../types";
+import type { HistoryRecord, Space } from "../types";
 import { getSpreadById } from "../data/spreadStore";
 import { formatDate } from "../data/dateUtils";
+import { DEFAULT_SPACE_ID } from "../data/constants";
 
 type HistoryPanelProps = {
   history: HistoryRecord[];
+  spaces: Space[];
   isOpen: boolean;
   onToggle: () => void;
   onClearHistory: () => void;
@@ -13,6 +15,7 @@ type HistoryPanelProps = {
 
 export function HistoryPanel({
   history,
+  spaces,
   isOpen,
   onToggle,
   onClearHistory,
@@ -44,7 +47,7 @@ export function HistoryPanel({
           ) : (
             <div className="history-list">
               {history.map((record) => (
-                <HistoryItem key={record.date} record={record} />
+                <HistoryItem key={record.date} record={record} spaces={spaces} />
               ))}
             </div>
           )}
@@ -54,9 +57,23 @@ export function HistoryPanel({
   );
 }
 
-function HistoryItem({ record }: { record: HistoryRecord }) {
+function HistoryItem({
+  record,
+  spaces,
+}: {
+  record: HistoryRecord;
+  spaces: Space[];
+}) {
   const [expanded, setExpanded] = useState(false);
   const spread = record.spreadId ? getSpreadById(record.spreadId) : null;
+  const space = record.spaceId
+    ? spaces.find((s) => s.id === record.spaceId)
+    : undefined;
+  const spaceDisplay = space
+    ? space
+    : record.spaceId === DEFAULT_SPACE_ID || !record.spaceId
+    ? { name: "默认空间", icon: "🏠" }
+    : { name: record.spaceName || "已删除空间", icon: "📦" };
 
   return (
     <div className="history-item">
@@ -66,25 +83,30 @@ function HistoryItem({ record }: { record: HistoryRecord }) {
       >
         <div className="history-item-left">
           <span className="history-item-date">{formatDate(record.date)}</span>
-          {spread && (
-            <span className="history-item-spread">
-              {spread.icon} {spread.name}
+          <div className="history-item-meta">
+            {spread && (
+              <span className="history-item-spread">
+                {spread.icon} {spread.name}
+              </span>
+            )}
+            <span className="history-item-space">
+              {spaceDisplay.icon} {spaceDisplay.name}
             </span>
-          )}
-          {record.archived && (
-            <span className="history-item-archived">
-              {record.archiveReason === "completed"
-                ? "已完成"
-                : record.archiveReason === "partial"
-                ? "部分翻开"
-                : "过期"}
-            </span>
-          )}
+            {record.archived && (
+              <span className="history-item-archived">
+                {record.archiveReason === "completed"
+                  ? "已完成"
+                  : record.archiveReason === "partial"
+                  ? "部分翻开"
+                  : "过期"}
+              </span>
+            )}
+          </div>
         </div>
         <div className="history-item-preview">
-          {record.cards.map((card) => (
+          {record.cards.map((card, index) => (
             <CardGlyph
-              key={card.position}
+              key={`${card.position}-${index}`}
               card={card}
               className="history-item-glyph"
               size="small"
@@ -101,8 +123,11 @@ function HistoryItem({ record }: { record: HistoryRecord }) {
               <p className="history-question-text">{record.question}</p>
             </div>
           )}
-          {record.cards.map((card) => (
-            <div key={card.position} className="history-card">
+          {record.cards.map((card, index) => (
+            <div
+              key={`${card.position}-${index}`}
+              className={`history-card ${card.isDeleted ? "deleted" : ""}`}
+            >
               <CardGlyph
                 card={card}
                 className="history-card-glyph"
@@ -113,6 +138,9 @@ function HistoryItem({ record }: { record: HistoryRecord }) {
                 <h4>{card.name}</h4>
                 <strong style={{ color: card.hue }}>{card.keyword}</strong>
                 <p>{card.meaning}</p>
+                {card.isDeleted && (
+                  <span className="history-card-deleted-hint">此牌已随所属空间删除</span>
+                )}
               </div>
             </div>
           ))}

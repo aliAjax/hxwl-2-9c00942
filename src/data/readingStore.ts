@@ -1,13 +1,22 @@
 import type { Reading, Card } from "../types";
-import { STORAGE_KEYS, DEFAULT_SPREAD_ID } from "./constants";
+import {
+  STORAGE_KEYS,
+  DEFAULT_SPREAD_ID,
+  DEFAULT_SPACE_ID,
+  CURRENT_MIGRATION_VERSION,
+  DELETED_CARD_PLACEHOLDER,
+} from "./constants";
 import { safeGetItem, safeSetItem, safeRemoveItem } from "./storage";
 import { todayKey } from "./dateUtils";
 
-function normalizeReading(raw: Reading & { revealed?: number; spreadId?: string }): Reading {
+function normalizeReading(
+  raw: Reading & { revealed?: number; spreadId?: string; spaceId?: string }
+): Reading {
   return {
     ...raw,
     revealed: raw.revealed ?? 0,
     spreadId: raw.spreadId ?? DEFAULT_SPREAD_ID,
+    spaceId: raw.spaceId ?? DEFAULT_SPACE_ID,
   };
 }
 
@@ -21,7 +30,12 @@ export function loadReading(): Reading | null {
 export function loadRawReading(): Reading | null {
   const raw = safeGetItem<Reading | null>(STORAGE_KEYS.reading, null);
   if (!raw) return null;
-  return normalizeReading(raw);
+  const migrated = normalizeReading(raw);
+  const migratedVersion = safeGetItem<number>(STORAGE_KEYS.migrationVersion, 0);
+  if (migratedVersion < CURRENT_MIGRATION_VERSION) {
+    safeSetItem(STORAGE_KEYS.reading, migrated);
+  }
+  return migrated;
 }
 
 export function saveReading(reading: Reading): boolean {
@@ -43,6 +57,7 @@ export function createReading(
   allCards: Card[],
   positionsCount: number,
   spreadId: string,
+  spaceId: string = DEFAULT_SPACE_ID,
   question?: string
 ): Reading {
   return {
@@ -51,6 +66,7 @@ export function createReading(
     revealed: 0,
     question: question?.trim() || undefined,
     spreadId,
+    spaceId,
   };
 }
 
@@ -58,11 +74,13 @@ export function getRevealedCards(
   reading: Reading,
   allCards: Card[],
   getCardByIdFn: (id: string, cards: Card[]) => Card | undefined
-): Card[] {
+): (Card | typeof DELETED_CARD_PLACEHOLDER)[] {
   return reading.cardIds
     .slice(0, reading.revealed)
-    .map((id) => getCardByIdFn(id, allCards))
-    .filter((card): card is Card => card !== undefined);
+    .map((id) => {
+      const card = getCardByIdFn(id, allCards);
+      return card ?? DELETED_CARD_PLACEHOLDER;
+    });
 }
 
 export function isReadingComplete(reading: Reading, totalPositions: number): boolean {
@@ -74,4 +92,19 @@ export function revealNextCard(reading: Reading, index: number): Reading {
     ...reading,
     revealed: Math.max(reading.revealed, index + 1),
   };
+}
+
+export function isReadingFromSpace(reading: Reading, spaceId: string): boolean {
+  return reading.spaceId === spaceId;
+}
+
+export function clearReadingIfFromSpace(
+  reading: Reading | null,
+  spaceId: string
+): Reading | null {
+  if (reading && reading.spaceId === spaceId && spaceId !== DEFAULT_SPACE_ID) {
+    clearReading();
+    return null;
+  }
+  return reading;
 }
