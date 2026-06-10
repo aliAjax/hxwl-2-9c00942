@@ -1,0 +1,202 @@
+:root {
+  color: #f7f0df;
+  background: #201b24;
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+button {
+  font: inherit;
+}
+
+.booth {
+  min-height: 100vh;
+  padding: 34px;
+  background:
+    linear-gradient(90deg, rgba(224, 93, 93, 0.2) 1px, transparent 1px),
+    linear-gradient(180deg, #201b24 0%, #3a2830 48%, #1b2430 100%);
+  background-size: 42px 42px, auto;
+}
+
+.counter {
+  max-width: 1120px;
+  margin: 0 auto 28px;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.eyebrow,
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+.eyebrow {
+  color: #f0bd68;
+  font-weight: 800;
+}
+
+h1 {
+  max-width: 660px;
+  margin-bottom: 12px;
+  font-size: clamp(2.4rem, 7vw, 5.7rem);
+  line-height: 0.92;
+}
+
+.counter p:last-child {
+  max-width: 540px;
+  color: #d7c7b8;
+  line-height: 1.65;
+}
+
+.draw-button {
+  border: 0;
+  border-radius: 8px;
+  padding: 14px 20px;
+  background: #f0bd68;
+  color: #2b1c1e;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.draw-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.66;
+}
+
+.table {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.oracle-card {
+  height: 430px;
+  perspective: 1200px;
+}
+
+.card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 560ms ease;
+}
+
+.oracle-card.revealed .card-inner {
+  transform: rotateY(180deg);
+}
+
+.card-back,
+.card-front {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 8px;
+}
+
+.card-back {
+  border: 1px solid rgba(240, 189, 104, 0.45);
+  background:
+    repeating-linear-gradient(45deg, rgba(240, 189, 104, 0.14) 0 12px, rgba(255, 255, 255, 0.03) 12px 24px),
+    #2f2632;
+  color: #f7f0df;
+  cursor: pointer;
+  font-size: 1.4rem;
+  font-weight: 900;
+}
+
+.card-back:disabled {
+  cursor: default;
+}
+
+.card-front {
+  transform: rotateY(180deg);
+  border: 4px solid;
+  background: #fbf1dc;
+  color: #281f24;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.glyph {
+  width: 100%;
+  aspect-ratio: 1.28;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #fffaf0;
+  font-size: 5rem;
+  font-weight: 900;
+}
+
+.card-front small {
+  color: #6d5a4d;
+  font-weight: 800;
+}
+
+.card-front h2 {
+  margin-bottom: 4px;
+}
+
+.card-front strong {
+  color: #8a392f;
+}
+
+.card-front p {
+  color: #4e4037;
+  line-height: 1.6;
+}
+
+.deck {
+  max-width: 1120px;
+  margin: 22px auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.deck span {
+  border-radius: 999px;
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+@media (max-width: 860px) {
+  .counter,
+  .table {
+    grid-template-columns: 1fr;
+  }
+
+  .counter {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 560px) {
+  .booth {
+    padding: 18px;
+  }
+
+  .oracle-card {
+    height: 390px;
+  }
+}
