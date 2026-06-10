@@ -15,6 +15,22 @@ type Reading = {
   cardIds: string[];
 };
 
+type HistoryCard = {
+  position: string;
+  name: string;
+  keyword: string;
+  meaning: string;
+  hue: string;
+  glyph: string;
+};
+
+type HistoryRecord = {
+  date: string;
+  cards: HistoryCard[];
+};
+
+const historyKey = "hxwl-2-history";
+
 const defaultCards: Card[] = [
   { id: "lantern", name: "倒挂灯笼", keyword: "迟来的消息", meaning: "不要急着催促，答案会在你转身之后出现。", hue: "#e05d5d", glyph: "灯" },
   { id: "well", name: "井边银币", keyword: "被忽略的资源", meaning: "你已经拥有一枚能撬动局面的筹码，只是它看起来太普通。", hue: "#6ba3b8", glyph: "井" },
@@ -55,6 +71,33 @@ function saveCustomCards(cards: Card[]) {
   localStorage.setItem(customCardsKey, JSON.stringify(cards));
 }
 
+function loadHistory(): HistoryRecord[] {
+  try {
+    return JSON.parse(localStorage.getItem(historyKey) || "[]") as HistoryRecord[];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(history: HistoryRecord[]) {
+  localStorage.setItem(historyKey, JSON.stringify(history));
+}
+
+function addToHistory(record: HistoryRecord) {
+  const history = loadHistory();
+  const existingIndex = history.findIndex((r) => r.date === record.date);
+  if (existingIndex >= 0) {
+    history[existingIndex] = record;
+  } else {
+    history.unshift(record);
+  }
+  saveHistory(history);
+}
+
+function clearHistory() {
+  localStorage.removeItem(historyKey);
+}
+
 function drawCards(allCards: Card[]) {
   return [...allCards]
     .sort(() => Math.random() - 0.5)
@@ -72,6 +115,63 @@ const emptyCard: Card = {
   isCustom: true,
 };
 
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (dateStr === todayKey()) {
+    return "今天";
+  } else if (dateStr === yesterday.toISOString().slice(0, 10)) {
+    return "昨天";
+  } else {
+    return `${date.getMonth() + 1}月${date.getDate()}日`;
+  }
+}
+
+function HistoryItem({ record }: { record: HistoryRecord }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="history-item">
+      <button className="history-item-header" onClick={() => setExpanded(!expanded)}>
+        <span className="history-item-date">{formatDate(record.date)}</span>
+        <div className="history-item-preview">
+          {record.cards.map((card) => (
+            <span
+              key={card.position}
+              className="history-item-glyph"
+              style={{ background: card.hue }}
+              title={card.name}
+            >
+              {card.glyph}
+            </span>
+          ))}
+        </div>
+        <span className={`history-item-arrow ${expanded ? "expanded" : ""}`}>▾</span>
+      </button>
+      {expanded && (
+        <div className="history-item-cards">
+          {record.cards.map((card) => (
+            <div key={card.position} className="history-card">
+              <div className="history-card-glyph" style={{ background: card.hue }}>
+                {card.glyph}
+              </div>
+              <div className="history-card-info">
+                <small>{card.position}</small>
+                <h4>{card.name}</h4>
+                <strong style={{ color: card.hue }}>{card.keyword}</strong>
+                <p>{card.meaning}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [reading, setReading] = useState<Reading | null>(loadReading);
   const [revealed, setRevealed] = useState(reading ? 3 : 0);
@@ -79,6 +179,8 @@ export default function App() {
   const [showDeckManager, setShowDeckManager] = useState(false);
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [isNewCard, setIsNewCard] = useState(false);
+  const [history, setHistory] = useState<HistoryRecord[]>(loadHistory);
+  const [showHistory, setShowHistory] = useState(false);
 
   const allCards = useMemo(() => [...defaultCards, ...customCards], [customCards]);
   const selectedCards = useMemo(
@@ -89,6 +191,24 @@ export default function App() {
   useEffect(() => {
     saveCustomCards(customCards);
   }, [customCards]);
+
+  useEffect(() => {
+    if (revealed === 3 && reading && selectedCards.length === 3) {
+      const record: HistoryRecord = {
+        date: reading.date,
+        cards: selectedCards.map((card, index) => ({
+          position: positions[index],
+          name: card.name,
+          keyword: card.keyword,
+          meaning: card.meaning,
+          hue: card.hue,
+          glyph: card.glyph,
+        })),
+      };
+      addToHistory(record);
+      setHistory(loadHistory());
+    }
+  }, [revealed]);
 
   function startReading() {
     const next = { date: todayKey(), cardIds: drawCards(allCards) };
@@ -111,6 +231,13 @@ export default function App() {
     setReading(null);
     setRevealed(0);
     localStorage.removeItem(storageKey);
+  }
+
+  function handleClearHistory() {
+    if (confirm("确定要清空所有历史记录吗？此操作不可恢复。")) {
+      clearHistory();
+      setHistory([]);
+    }
   }
 
   function handleDeleteCard(cardId: string) {
@@ -201,6 +328,34 @@ export default function App() {
             </span>
           ))}
         </div>
+      </section>
+
+      <section className="history-section">
+        <div className="history-header">
+          <button className="history-toggle" onClick={() => setShowHistory(!showHistory)}>
+            <span className="history-title">历史记录</span>
+            <span className="history-count">{history.length} 条</span>
+            <span className={`history-arrow ${showHistory ? "expanded" : ""}`}>▾</span>
+          </button>
+          {history.length > 0 && showHistory && (
+            <button className="clear-history-button" onClick={handleClearHistory}>
+              清空历史
+            </button>
+          )}
+        </div>
+        {showHistory && (
+          <div className="history-content">
+            {history.length === 0 ? (
+              <p className="empty-history">还没有历史记录，完成一次抽牌后会自动保存。</p>
+            ) : (
+              <div className="history-list">
+                {history.map((record) => (
+                  <HistoryItem key={record.date} record={record} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {showDeckManager && (
