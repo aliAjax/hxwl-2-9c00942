@@ -1762,3 +1762,59 @@ h1 {
   line-height: 1.5;
   transition: color 0.35s ease;
 }
+
+.archive-notice {
+  max-width: 1120px;
+  margin: 0 auto 16px;
+  padding: 12px 20px;
+  background: var(--surface-accent);
+  border: 1px solid var(--border-medium);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.archive-notice:hover {
+  background: var(--surface-accent-strong);
+}
+
+.archive-notice-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.archive-notice-close {
+  margin-left: auto;
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.history-item-archived {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.share-generate-section {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.share-generate-section p {
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  font-size: 1rem;
+}
