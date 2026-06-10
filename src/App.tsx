@@ -1,4 +1,69 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
+
+type ThemeId = "night-market" | "dawn-morning" | "rainy-night";
+
+type Theme = {
+  id: ThemeId;
+  name: string;
+  icon: string;
+};
+
+const THEMES: Theme[] = [
+  { id: "night-market", name: "夜市", icon: "🌙" },
+  { id: "dawn-morning", name: "清晨", icon: "🌅" },
+  { id: "rainy-night", name: "雨夜", icon: "🌧️" },
+];
+
+const THEME_KEY = "hxwl-2-theme";
+const DEFAULT_THEME: ThemeId = "night-market";
+
+function loadTheme(): ThemeId {
+  try {
+    const saved = localStorage.getItem(THEME_KEY) as ThemeId | null;
+    if (saved && THEMES.some((t) => t.id === saved)) {
+      return saved;
+    }
+  } catch {}
+  return DEFAULT_THEME;
+}
+
+function applyTheme(themeId: ThemeId) {
+  document.documentElement.setAttribute("data-theme", themeId);
+}
+
+function saveTheme(themeId: ThemeId) {
+  try {
+    localStorage.setItem(THEME_KEY, themeId);
+  } catch {}
+}
+
+function ThemeSwitcher({
+  currentTheme,
+  onThemeChange,
+}: {
+  currentTheme: ThemeId;
+  onThemeChange: (themeId: ThemeId) => void;
+}) {
+  return (
+    <section className="theme-section">
+      <div className="theme-switcher" role="tablist" aria-label="主题切换">
+        {THEMES.map((theme) => (
+          <button
+            key={theme.id}
+            className={`theme-button ${currentTheme === theme.id ? "active" : ""}`}
+            onClick={() => onThemeChange(theme.id)}
+            role="tab"
+            aria-selected={currentTheme === theme.id}
+            title={theme.name}
+          >
+            <span className="theme-icon">{theme.icon}</span>
+            <span>{theme.name}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 type Spread = {
   id: string;
@@ -245,6 +310,7 @@ function HistoryItem({ record }: { record: HistoryRecord }) {
 }
 
 export default function App() {
+  const [theme, setTheme] = useState<ThemeId>(loadTheme);
   const [reading, setReading] = useState<Reading | null>(loadReading);
   const [revealed, setRevealed] = useState(reading?.revealed ?? 0);
   const [customCards, setCustomCards] = useState<Card[]>(loadCustomCards);
@@ -258,6 +324,16 @@ export default function App() {
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
   const [question, setQuestion] = useState(reading?.question ?? "");
   const [selectedSpreadId, setSelectedSpreadId] = useState<string>(reading?.spreadId ?? defaultSpreadId);
+
+  const handleThemeChange = useCallback((themeId: ThemeId) => {
+    setTheme(themeId);
+    applyTheme(themeId);
+    saveTheme(themeId);
+  }, []);
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
 
   const currentSpread = getSpreadById(reading?.spreadId ?? selectedSpreadId);
   const currentPositions = currentSpread.positions;
@@ -562,6 +638,7 @@ export default function App() {
 
   return (
     <main className="booth">
+      <ThemeSwitcher currentTheme={theme} onThemeChange={handleThemeChange} />
       <section className="counter">
         <div>
           <p className="eyebrow">夜市占卜摊</p>
