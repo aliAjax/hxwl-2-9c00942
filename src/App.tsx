@@ -13,6 +13,7 @@ type Card = {
 type Reading = {
   date: string;
   cardIds: string[];
+  revealed: number;
 };
 
 type HistoryCard = {
@@ -52,8 +53,14 @@ function todayKey() {
 
 function loadReading(): Reading | null {
   try {
-    const reading = JSON.parse(localStorage.getItem(storageKey) || "null") as Reading | null;
-    return reading?.date === todayKey() ? reading : null;
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return null;
+    const reading = JSON.parse(raw) as Reading & { revealed?: number };
+    if (reading.date !== todayKey()) return null;
+    if (reading.revealed === undefined) {
+      reading.revealed = 0;
+    }
+    return reading as Reading;
   } catch {
     return null;
   }
@@ -174,7 +181,7 @@ function HistoryItem({ record }: { record: HistoryRecord }) {
 
 export default function App() {
   const [reading, setReading] = useState<Reading | null>(loadReading);
-  const [revealed, setRevealed] = useState(reading ? 3 : 0);
+  const [revealed, setRevealed] = useState(reading?.revealed ?? 0);
   const [customCards, setCustomCards] = useState<Card[]>(loadCustomCards);
   const [showDeckManager, setShowDeckManager] = useState(false);
   const [editingCard, setEditingCard] = useState<Card | null>(null);
@@ -193,6 +200,13 @@ export default function App() {
   }, [customCards]);
 
   useEffect(() => {
+    if (reading) {
+      const updated = { ...reading, revealed };
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    }
+  }, [revealed, reading]);
+
+  useEffect(() => {
     if (revealed === 3 && reading && selectedCards.length === 3) {
       const record: HistoryRecord = {
         date: reading.date,
@@ -208,10 +222,10 @@ export default function App() {
       addToHistory(record);
       setHistory(loadHistory());
     }
-  }, [revealed]);
+  }, [revealed, reading, selectedCards]);
 
   function startReading() {
-    const next = { date: todayKey(), cardIds: drawCards(allCards) };
+    const next = { date: todayKey(), cardIds: drawCards(allCards), revealed: 0 };
     setReading(next);
     setRevealed(0);
     localStorage.setItem(storageKey, JSON.stringify(next));
