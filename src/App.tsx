@@ -82,6 +82,7 @@ type Card = {
   hue: string;
   glyph: string;
   isCustom?: boolean;
+  illustration?: string;
 };
 
 type Reading = {
@@ -99,6 +100,7 @@ type HistoryCard = {
   meaning: string;
   hue: string;
   glyph: string;
+  illustration?: string;
 };
 
 type HistoryRecord = {
@@ -238,6 +240,105 @@ const emptyCard: Card = {
   isCustom: true,
 };
 
+const MAX_IMAGE_SIZE = 400;
+const IMAGE_QUALITY = 0.7;
+
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+
+        if (width > height) {
+          if (width > MAX_IMAGE_SIZE) {
+            height = (height / width) * MAX_IMAGE_SIZE;
+            width = MAX_IMAGE_SIZE;
+          }
+        } else {
+          if (height > MAX_IMAGE_SIZE) {
+            width = (width / height) * MAX_IMAGE_SIZE;
+            height = MAX_IMAGE_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        try {
+          const dataUrl = canvas.toDataURL("image/jpeg", IMAGE_QUALITY);
+          resolve(dataUrl);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function estimateLocalStorageUsage(): number {
+  let total = 0;
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key) {
+      total += localStorage.getItem(key)?.length || 0;
+    }
+  }
+  return total;
+}
+
+function CardGlyph({
+  card,
+  className = "",
+  size = "normal",
+}: {
+  card: Pick<Card, "glyph" | "hue" | "illustration">;
+  className?: string;
+  size?: "small" | "normal" | "large";
+}) {
+  const [imgError, setImgError] = useState(false);
+  const hasIllustration = card.illustration && !imgError;
+
+  const sizeClasses = {
+    small: "glyph-small",
+    normal: "",
+    large: "glyph-large",
+  };
+
+  if (hasIllustration) {
+    return (
+      <div
+        className={`glyph glyph-illustration ${sizeClasses[size]} ${className}`}
+        style={{ background: card.hue }}
+      >
+        <img
+          src={card.illustration}
+          alt=""
+          onError={() => setImgError(true)}
+          draggable={false}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`glyph ${sizeClasses[size]} ${className}`}
+      style={{ background: card.hue }}
+    >
+      {card.glyph}
+    </div>
+  );
+}
+
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
   const today = new Date();
@@ -270,14 +371,12 @@ function HistoryItem({ record }: { record: HistoryRecord }) {
         </div>
         <div className="history-item-preview">
           {record.cards.map((card) => (
-            <span
+            <CardGlyph
               key={card.position}
+              card={card}
               className="history-item-glyph"
-              style={{ background: card.hue }}
-              title={card.name}
-            >
-              {card.glyph}
-            </span>
+              size="small"
+            />
           ))}
         </div>
         <span className={`history-item-arrow ${expanded ? "expanded" : ""}`}>▾</span>
@@ -292,9 +391,7 @@ function HistoryItem({ record }: { record: HistoryRecord }) {
           )}
           {record.cards.map((card) => (
             <div key={card.position} className="history-card">
-              <div className="history-card-glyph" style={{ background: card.hue }}>
-                {card.glyph}
-              </div>
+              <CardGlyph card={card} className="history-card-glyph" size="small" />
               <div className="history-card-info">
                 <small>{card.position}</small>
                 <h4>{card.name}</h4>
@@ -324,6 +421,7 @@ export default function App() {
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
   const [question, setQuestion] = useState(reading?.question ?? "");
   const [selectedSpreadId, setSelectedSpreadId] = useState<string>(reading?.spreadId ?? defaultSpreadId);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const handleThemeChange = useCallback((themeId: ThemeId) => {
     setTheme(themeId);
@@ -368,6 +466,7 @@ export default function App() {
           meaning: card.meaning,
           hue: card.hue,
           glyph: card.glyph,
+          illustration: card.illustration,
         })),
         question: reading.question,
         spreadId: reading.spreadId,
@@ -616,12 +715,52 @@ export default function App() {
     }
   }
 
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !editingCard) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("请选择图片文件");
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const compressed = await compressImage(file);
+      setEditingCard({ ...editingCard, illustration: compressed });
+    } catch {
+      alert("图片处理失败，请尝试其他图片");
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = "";
+    }
+  }
+
+  function handleRemoveImage() {
+    if (!editingCard) return;
+    setEditingCard({ ...editingCard, illustration: undefined });
+  }
+
   function handleSaveCard() {
     if (!editingCard) return;
     if (!editingCard.name.trim() || !editingCard.keyword.trim() || !editingCard.meaning.trim()) {
       alert("请填写完整的牌信息");
       return;
     }
+
+    try {
+      const testKey = "hxwl-storage-test";
+      const testCards = isNewCard
+        ? [...customCards, editingCard]
+        : customCards.map((c) => (c.id === editingCard.id ? editingCard : c));
+      const testData = JSON.stringify(testCards);
+      localStorage.setItem(testKey, testData);
+      localStorage.removeItem(testKey);
+    } catch {
+      alert("存储空间不足，可能是图片太大了。请尝试移除图片或使用更小的图片。");
+      return;
+    }
+
     if (isNewCard) {
       setCustomCards((prev) => [...prev, editingCard]);
     } else {
@@ -745,9 +884,7 @@ export default function App() {
                 </button>
                 {card && (
                   <div className="card-front" style={{ borderColor: card.hue }}>
-                    <div className="glyph" style={{ background: card.hue }}>
-                      {card.glyph}
-                    </div>
+                    <CardGlyph card={card} />
                     <small>{position}</small>
                     <h2>{card.name}</h2>
                     <strong style={{ color: card.hue }}>{card.keyword}</strong>
@@ -834,9 +971,7 @@ export default function App() {
                   <h3 className="card-section-title">默认牌组</h3>
                   {defaultCards.map((card) => (
                     <div key={card.id} className="card-item">
-                      <div className="card-item-glyph" style={{ background: card.hue }}>
-                        {card.glyph}
-                      </div>
+                      <CardGlyph card={card} className="card-item-glyph" size="small" />
                       <div className="card-item-info">
                         <h4>{card.name}</h4>
                         <span className="card-item-keyword" style={{ background: card.hue }}>
@@ -856,9 +991,7 @@ export default function App() {
                   ) : (
                     customCards.map((card) => (
                       <div key={card.id} className="card-item">
-                        <div className="card-item-glyph" style={{ background: card.hue }}>
-                          {card.glyph}
-                        </div>
+                        <CardGlyph card={card} className="card-item-glyph" size="small" />
                         <div className="card-item-info">
                           <h4>{card.name}</h4>
                           <span className="card-item-keyword" style={{ background: card.hue }}>
@@ -938,12 +1071,39 @@ export default function App() {
                   </div>
                 </div>
 
+                <div className="form-row">
+                  <label>牌面插画</label>
+                  <div className="illustration-upload">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="illustration-input"
+                      id="illustration-upload"
+                      disabled={isUploadingImage}
+                    />
+                    <label htmlFor="illustration-upload" className="illustration-upload-button">
+                      {isUploadingImage ? "处理中..." : "📷 上传插画图片"}
+                    </label>
+                    {editingCard.illustration && (
+                      <button
+                        type="button"
+                        className="remove-illustration-button"
+                        onClick={handleRemoveImage}
+                      >
+                        移除图片
+                      </button>
+                    )}
+                  </div>
+                  <p className="illustration-hint">
+                    建议上传正方形图片，图片会自动压缩以节省存储空间。
+                  </p>
+                </div>
+
                 <div className="card-preview">
                   <div className="preview-label">预览</div>
                   <div className="card-preview-box" style={{ borderColor: editingCard.hue }}>
-                    <div className="glyph" style={{ background: editingCard.hue }}>
-                      {editingCard.glyph || "牌"}
-                    </div>
+                    <CardGlyph card={editingCard} />
                     <h4>{editingCard.name || "牌名"}</h4>
                     <strong style={{ color: editingCard.hue }}>{editingCard.keyword || "关键词"}</strong>
                     <p>{editingCard.meaning || "牌的解释"}</p>
