@@ -107,9 +107,23 @@ export default function App() {
     setIsNewCard(false);
   }
 
+  function clearReading() {
+    setReading(null);
+    setRevealed(0);
+    localStorage.removeItem(storageKey);
+  }
+
   function handleDeleteCard(cardId: string) {
-    if (confirm("确定要删除这张牌吗？")) {
+    const isInTodayReading = reading?.cardIds.includes(cardId);
+    let confirmMessage = "确定要删除这张牌吗？";
+    if (isInTodayReading) {
+      confirmMessage = "这张牌在今日抽牌结果中，删除后今日牌面将重置，确定要删除吗？";
+    }
+    if (confirm(confirmMessage)) {
       setCustomCards((prev) => prev.filter((c) => c.id !== cardId));
+      if (isInTodayReading) {
+        clearReading();
+      }
     }
   }
 
