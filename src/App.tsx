@@ -56,12 +56,12 @@ export default function App() {
   const totalCards = currentPositions.length;
 
   const allCards = useMemo(() => getAllCards(customCards), [customCards]);
-  const selectedCards = useMemo(
-    () =>
-      reading?.cardIds.map((id) => getCardById(id, allCards)!).filter(Boolean) ??
-      [],
-    [reading, allCards]
-  );
+  const selectedCards = useMemo(() => {
+    if (!reading) return [];
+    return reading.cardIds
+      .map((id) => getCardById(id, allCards))
+      .filter((card): card is Card => card !== undefined);
+  }, [reading, allCards]);
 
   useEffect(() => {
     saveCustomCards(customCards);

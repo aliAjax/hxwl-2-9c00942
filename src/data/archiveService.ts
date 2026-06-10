@@ -1,9 +1,8 @@
-import type { Reading, HistoryRecord, ArchiveResult, Card } from "../types";
+import type { Reading, HistoryRecord, ArchiveResult } from "../types";
 import { loadRawReading, clearReading } from "./readingStore";
 import { loadHistory, saveHistory, addRecord, createArchivedRecord } from "./historyStore";
 import { getPositions, getSpreadById } from "./spreadStore";
 import { getAllCards, loadCustomCards } from "./cardStore";
-import { DEFAULT_CARDS } from "./constants";
 import { todayKey, isToday } from "./dateUtils";
 
 export function checkAndArchive(): ArchiveResult {

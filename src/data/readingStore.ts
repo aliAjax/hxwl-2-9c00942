@@ -61,8 +61,8 @@ export function getRevealedCards(
 ): Card[] {
   return reading.cardIds
     .slice(0, reading.revealed)
-    .map((id) => getCardByIdFn(id, allCards)!)
-    .filter(Boolean);
+    .map((id) => getCardByIdFn(id, allCards))
+    .filter((card): card is Card => card !== undefined);
 }
 
 export function isReadingComplete(reading: Reading, totalPositions: number): boolean {
