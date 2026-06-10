@@ -851,3 +851,87 @@ h1 {
     gap: 10px;
   }
 }
+
+.share-section {
+  max-width: 1120px;
+  margin: 24px auto 0;
+  display: flex;
+  justify-content: center;
+}
+
+.share-button {
+  background: linear-gradient(135deg, #f0bd68 0%, #d9904f 100%);
+  color: #2b1c1e;
+  border: 0;
+  padding: 14px 36px;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 20px rgba(240, 189, 104, 0.3);
+}
+
+.share-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 28px rgba(240, 189, 104, 0.45);
+}
+
+.share-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.share-modal {
+  max-width: 520px;
+}
+
+.share-modal-body {
+  padding: 20px 24px 24px;
+}
+
+.share-image-preview {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.share-image-preview img {
+  max-width: 100%;
+  max-height: 540px;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.share-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.download-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 560px) {
+  .share-modal {
+    max-width: 100%;
+  }
+
+  .share-modal-body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .share-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .share-modal-actions button {
+    width: 100%;
+  }
+}

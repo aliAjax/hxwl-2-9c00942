@@ -188,6 +188,9 @@ export default function App() {
   const [isNewCard, setIsNewCard] = useState(false);
   const [history, setHistory] = useState<HistoryRecord[]>(loadHistory);
   const [showHistory, setShowHistory] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareImageUrl, setShareImageUrl] = useState<string>("");
+  const [isGeneratingShare, setIsGeneratingShare] = useState(false);
 
   const allCards = useMemo(() => [...defaultCards, ...customCards], [customCards]);
   const selectedCards = useMemo(
@@ -245,6 +248,168 @@ export default function App() {
     setReading(null);
     setRevealed(0);
     localStorage.removeItem(storageKey);
+  }
+
+  function formatShareDate(dateStr: string): string {
+    const date = new Date(dateStr);
+    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+  }
+
+  function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+    const lines: string[] = [];
+    let currentLine = "";
+    for (const char of text) {
+      const testLine = currentLine + char;
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > maxWidth && currentLine.length > 0) {
+        lines.push(currentLine);
+        currentLine = char;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    return lines;
+  }
+
+  function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  async function generateShareImage(): Promise<string> {
+    const canvas = document.createElement("canvas");
+    const W = 1080;
+    const H = 1440;
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d")!;
+
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, H);
+    bgGradient.addColorStop(0, "#201b24");
+    bgGradient.addColorStop(0.48, "#3a2830");
+    bgGradient.addColorStop(1, "#1b2430");
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = "rgba(224, 93, 93, 0.2)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 42) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#f0bd68";
+    ctx.font = "800 32px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
+    ctx.fillText("夜市占卜摊", W / 2, 100);
+
+    ctx.fillStyle = "#f7f0df";
+    ctx.font = "900 64px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
+    ctx.fillText("今日牌面", W / 2, 180);
+
+    ctx.fillStyle = "#d7c7b8";
+    ctx.font = "600 28px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
+    ctx.fillText(formatShareDate(reading?.date || todayKey()), W / 2, 230);
+
+    const cardStartY = 300;
+    const cardGap = 40;
+    const cardHeight = 320;
+    const cardWidth = W - 120;
+    const cardX = 60;
+
+    for (let i = 0; i < 3; i++) {
+      const card = selectedCards[i];
+      const position = positions[i];
+      const y = cardStartY + i * (cardHeight + cardGap);
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
+      drawRoundedRect(ctx, cardX, y, cardWidth, cardHeight, 20);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(240, 189, 104, 0.15)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      const glyphSize = 200;
+      const glyphX = cardX + 50;
+      const glyphY = y + (cardHeight - glyphSize) / 2;
+
+      ctx.fillStyle = card.hue;
+      drawRoundedRect(ctx, glyphX, glyphY, glyphSize, glyphSize * 0.78, 16);
+      ctx.fill();
+
+      ctx.fillStyle = "#fffaf0";
+      ctx.font = "900 120px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(card.glyph, glyphX + glyphSize / 2, glyphY + (glyphSize * 0.78) / 2);
+      ctx.textBaseline = "alphabetic";
+
+      const infoX = glyphX + glyphSize + 40;
+      const infoWidth = cardWidth - (glyphSize + 90);
+
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#8a7a6d";
+      ctx.font = "700 26px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
+      ctx.fillText(position, infoX, y + 65);
+
+      ctx.fillStyle = "#281f24";
+      ctx.font = "900 44px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
+      ctx.fillStyle = "#f7f0df";
+      ctx.fillText(card.name, infoX, y + 125);
+
+      ctx.fillStyle = card.hue;
+      ctx.font = "800 30px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
+      ctx.fillText(card.keyword, infoX, y + 175);
+
+      ctx.fillStyle = "#d7c7b8";
+      ctx.font = "500 26px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
+      const meaningLines = wrapText(ctx, card.meaning, infoWidth);
+      meaningLines.slice(0, 3).forEach((line, idx) => {
+        ctx.fillText(line, infoX, y + 230 + idx * 38);
+      });
+    }
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(240, 189, 104, 0.6)";
+    ctx.font = "600 24px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
+    ctx.fillText("—— 每天只翻三张牌 ——", W / 2, H - 80);
+
+    return canvas.toDataURL("image/png", 1.0);
+  }
+
+  async function handleShare() {
+    setIsGeneratingShare(true);
+    try {
+      const url = await generateShareImage();
+      setShareImageUrl(url);
+      setShowShareModal(true);
+    } finally {
+      setIsGeneratingShare(false);
+    }
+  }
+
+  function downloadShareImage() {
+    if (!shareImageUrl) return;
+    const link = document.createElement("a");
+    link.download = `今日牌面_${reading?.date || todayKey()}.png`;
+    link.href = shareImageUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   function handleClearHistory() {
@@ -327,6 +492,14 @@ export default function App() {
           );
         })}
       </section>
+
+      {revealed === 3 && selectedCards.length === 3 && (
+        <section className="share-section">
+          <button className="share-button" onClick={handleShare} disabled={isGeneratingShare}>
+            {isGeneratingShare ? "生成中..." : "✨ 生成分享图"}
+          </button>
+        </section>
+      )}
 
       <section className="deck">
         <div className="deck-header">
@@ -520,6 +693,32 @@ export default function App() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {showShareModal && (
+        <div className="modal-overlay" onClick={() => setShowShareModal(false)}>
+          <div className="modal-content share-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>今日牌面分享图</h2>
+              <button className="modal-close" onClick={() => setShowShareModal(false)}>
+                ×
+              </button>
+            </div>
+            <div className="share-modal-body">
+              <div className="share-image-preview">
+                <img src={shareImageUrl} alt="今日牌面分享图" />
+              </div>
+              <div className="share-modal-actions">
+                <button className="cancel-button" onClick={() => setShowShareModal(false)}>
+                  关闭
+                </button>
+                <button className="save-button download-button" onClick={downloadShareImage}>
+                  📥 保存到本地
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
