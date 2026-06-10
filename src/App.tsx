@@ -1,5 +1,14 @@
 import { useMemo, useState, useEffect } from "react";
 
+type Spread = {
+  id: string;
+  name: string;
+  subtitle: string;
+  description: string;
+  positions: string[];
+  icon: string;
+};
+
 type Card = {
   id: string;
   name: string;
@@ -15,6 +24,7 @@ type Reading = {
   cardIds: string[];
   revealed: number;
   question?: string;
+  spreadId: string;
 };
 
 type HistoryCard = {
@@ -30,8 +40,37 @@ type HistoryRecord = {
   date: string;
   cards: HistoryCard[];
   question?: string;
+  spreadId?: string;
 };
 
+const spreads: Spread[] = [
+  {
+    id: "one-card",
+    name: "一张牌快速指引",
+    subtitle: "今日一签",
+    description: "抽一张牌，快速获得今日指引",
+    positions: ["今日指引"],
+    icon: "✨",
+  },
+  {
+    id: "three-card",
+    name: "三张牌展开",
+    subtitle: "事件·阻碍·建议",
+    description: "经典三张牌阵，看清问题全貌",
+    positions: ["事件", "阻碍", "建议"],
+    icon: "🎴",
+  },
+  {
+    id: "five-card",
+    name: "五张牌深度展开",
+    subtitle: "过去·现在·未来·核心·指引",
+    description: "五张牌深度解读，探寻更多维度",
+    positions: ["过去", "现在", "未来", "核心", "指引"],
+    icon: "🌟",
+  },
+];
+
+const defaultSpreadId = "three-card";
 const historyKey = "hxwl-2-history";
 
 const defaultCards: Card[] = [
@@ -45,9 +84,16 @@ const defaultCards: Card[] = [
   { id: "bell", name: "铜铃", keyword: "提醒", meaning: "一个重复出现的小信号，今天值得被认真对待。", hue: "#c99a35", glyph: "铃" }
 ];
 
-const positions = ["事件", "阻碍", "建议"];
 const storageKey = "hxwl-2-reading";
 const customCardsKey = "hxwl-2-custom-cards";
+
+function getSpreadById(spreadId: string): Spread {
+  return spreads.find((s) => s.id === spreadId) || spreads.find((s) => s.id === defaultSpreadId)!;
+}
+
+function getPositions(spreadId: string): string[] {
+  return getSpreadById(spreadId).positions;
+}
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -57,10 +103,13 @@ function loadReading(): Reading | null {
   try {
     const raw = localStorage.getItem(storageKey);
     if (!raw) return null;
-    const reading = JSON.parse(raw) as Reading & { revealed?: number };
+    const reading = JSON.parse(raw) as Reading & { revealed?: number; spreadId?: string };
     if (reading.date !== todayKey()) return null;
     if (reading.revealed === undefined) {
       reading.revealed = 0;
+    }
+    if (reading.spreadId === undefined) {
+      reading.spreadId = defaultSpreadId;
     }
     return reading as Reading;
   } catch {
@@ -107,10 +156,10 @@ function clearHistory() {
   localStorage.removeItem(historyKey);
 }
 
-function drawCards(allCards: Card[]) {
+function drawCards(allCards: Card[], count: number) {
   return [...allCards]
     .sort(() => Math.random() - 0.5)
-    .slice(0, 3)
+    .slice(0, count)
     .map((card) => card.id);
 }
 
@@ -141,11 +190,19 @@ function formatDate(dateStr: string): string {
 
 function HistoryItem({ record }: { record: HistoryRecord }) {
   const [expanded, setExpanded] = useState(false);
+  const spread = record.spreadId ? getSpreadById(record.spreadId) : null;
 
   return (
     <div className="history-item">
       <button className="history-item-header" onClick={() => setExpanded(!expanded)}>
-        <span className="history-item-date">{formatDate(record.date)}</span>
+        <div className="history-item-left">
+          <span className="history-item-date">{formatDate(record.date)}</span>
+          {spread && (
+            <span className="history-item-spread">
+              {spread.icon} {spread.name}
+            </span>
+          )}
+        </div>
         <div className="history-item-preview">
           {record.cards.map((card) => (
             <span
@@ -200,6 +257,11 @@ export default function App() {
   const [shareImageUrl, setShareImageUrl] = useState<string>("");
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
   const [question, setQuestion] = useState(reading?.question ?? "");
+  const [selectedSpreadId, setSelectedSpreadId] = useState<string>(reading?.spreadId ?? defaultSpreadId);
+
+  const currentSpread = getSpreadById(reading?.spreadId ?? selectedSpreadId);
+  const currentPositions = currentSpread.positions;
+  const totalCards = currentPositions.length;
 
   const allCards = useMemo(() => [...defaultCards, ...customCards], [customCards]);
   const selectedCards = useMemo(
@@ -219,7 +281,8 @@ export default function App() {
   }, [revealed, reading]);
 
   useEffect(() => {
-    if (revealed === 3 && reading && selectedCards.length === 3) {
+    if (reading && revealed === totalCards && selectedCards.length === totalCards) {
+      const positions = getPositions(reading.spreadId);
       const record: HistoryRecord = {
         date: reading.date,
         cards: selectedCards.map((card, index) => ({
@@ -231,15 +294,23 @@ export default function App() {
           glyph: card.glyph,
         })),
         question: reading.question,
+        spreadId: reading.spreadId,
       };
       addToHistory(record);
       setHistory(loadHistory());
     }
-  }, [revealed, reading, selectedCards]);
+  }, [revealed, reading, selectedCards, totalCards]);
 
   function startReading() {
     const trimmed = question.trim();
-    const next: Reading = { date: todayKey(), cardIds: drawCards(allCards), revealed: 0, question: trimmed || undefined };
+    const positions = getPositions(selectedSpreadId);
+    const next: Reading = {
+      date: todayKey(),
+      cardIds: drawCards(allCards, positions.length),
+      revealed: 0,
+      question: trimmed || undefined,
+      spreadId: selectedSpreadId,
+    };
     setReading(next);
     setRevealed(0);
     localStorage.setItem(storageKey, JSON.stringify(next));
@@ -302,7 +373,13 @@ export default function App() {
   async function generateShareImage(): Promise<string> {
     const canvas = document.createElement("canvas");
     const W = 1080;
-    const H = 1440;
+    const positions = currentPositions;
+    const cardCount = positions.length;
+    const cardGap = cardCount <= 3 ? 40 : 28;
+    const cardHeight = cardCount <= 3 ? 320 : Math.max(180, Math.floor(900 / cardCount));
+    const shareTitle = cardCount === 1 ? "今日一签" : "今日牌面";
+    const footerText = cardCount === 1 ? "—— 一张牌的指引 ——" : `—— ${cardCount}张牌展开 ——`;
+    const H = Math.max(1440, 400 + cardCount * (cardHeight + cardGap) + 100);
     canvas.width = W;
     canvas.height = H;
     const ctx = canvas.getContext("2d")!;
@@ -330,30 +407,35 @@ export default function App() {
 
     ctx.fillStyle = "#f7f0df";
     ctx.font = "900 64px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
-    ctx.fillText("今日牌面", W / 2, 180);
+    ctx.fillText(shareTitle, W / 2, 180);
 
     ctx.fillStyle = "#d7c7b8";
     ctx.font = "600 28px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
     ctx.fillText(formatShareDate(reading?.date || todayKey()), W / 2, 230);
 
+    ctx.fillStyle = "rgba(240, 189, 104, 0.7)";
+    ctx.font = "700 24px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
+    ctx.fillText(`${currentSpread.icon} ${currentSpread.name}`, W / 2, 270);
+
     const shareQuestion = reading?.question;
-    let cardStartY = 300;
+    let cardStartY = 320;
     if (shareQuestion) {
       ctx.fillStyle = "rgba(240, 189, 104, 0.85)";
       ctx.font = "700 30px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
       const questionLines = wrapText(ctx, `「${shareQuestion}」`, W - 160);
       questionLines.forEach((line, idx) => {
-        ctx.fillText(line, W / 2, 270 + idx * 42);
+        ctx.fillText(line, W / 2, cardStartY + idx * 42);
       });
-      cardStartY = 270 + questionLines.length * 42 + 30;
+      cardStartY = cardStartY + questionLines.length * 42 + 30;
     }
 
-    const cardGap = 40;
-    const cardHeight = 320;
     const cardWidth = W - 120;
     const cardX = 60;
+    const glyphRatio = cardCount <= 3 ? 0.78 : 0.85;
+    const glyphSize = cardCount <= 3 ? 200 : Math.floor(cardHeight * 0.8);
+    const fontScale = cardCount <= 3 ? 1 : Math.max(0.55, 1 - (cardCount - 3) * 0.15);
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < cardCount; i++) {
       const card = selectedCards[i];
       const position = positions[i];
       const y = cardStartY + i * (cardHeight + cardGap);
@@ -365,50 +447,53 @@ export default function App() {
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      const glyphSize = 200;
       const glyphX = cardX + 50;
       const glyphY = y + (cardHeight - glyphSize) / 2;
 
       ctx.fillStyle = card.hue;
-      drawRoundedRect(ctx, glyphX, glyphY, glyphSize, glyphSize * 0.78, 16);
+      drawRoundedRect(ctx, glyphX, glyphY, glyphSize, glyphSize * glyphRatio, 16);
       ctx.fill();
 
       ctx.fillStyle = "#fffaf0";
-      ctx.font = "900 120px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
+      ctx.font = `900 ${Math.floor(120 * fontScale)}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(card.glyph, glyphX + glyphSize / 2, glyphY + (glyphSize * 0.78) / 2);
+      ctx.fillText(card.glyph, glyphX + glyphSize / 2, glyphY + (glyphSize * glyphRatio) / 2);
       ctx.textBaseline = "alphabetic";
 
       const infoX = glyphX + glyphSize + 40;
       const infoWidth = cardWidth - (glyphSize + 90);
+      const meaningLineCount = cardCount <= 3 ? 3 : 2;
+      const titleFontSize = Math.floor(44 * fontScale);
+      const keywordFontSize = Math.floor(30 * fontScale);
+      const textFontSize = Math.floor(26 * fontScale);
+      const topPadding = cardCount <= 3 ? 65 : Math.floor(cardHeight * 0.22);
 
       ctx.textAlign = "left";
       ctx.fillStyle = "#8a7a6d";
-      ctx.font = "700 26px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
-      ctx.fillText(position, infoX, y + 65);
+      ctx.font = `700 ${Math.floor(26 * fontScale)}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+      ctx.fillText(position, infoX, y + topPadding);
 
-      ctx.fillStyle = "#281f24";
-      ctx.font = "900 44px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
       ctx.fillStyle = "#f7f0df";
-      ctx.fillText(card.name, infoX, y + 125);
+      ctx.font = `900 ${titleFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+      ctx.fillText(card.name, infoX, y + topPadding + titleFontSize + 8);
 
       ctx.fillStyle = card.hue;
-      ctx.font = "800 30px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
-      ctx.fillText(card.keyword, infoX, y + 175);
+      ctx.font = `800 ${keywordFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+      ctx.fillText(card.keyword, infoX, y + topPadding + titleFontSize + keywordFontSize + 16);
 
       ctx.fillStyle = "#d7c7b8";
-      ctx.font = "500 26px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
+      ctx.font = `500 ${textFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
       const meaningLines = wrapText(ctx, card.meaning, infoWidth);
-      meaningLines.slice(0, 3).forEach((line, idx) => {
-        ctx.fillText(line, infoX, y + 230 + idx * 38);
+      meaningLines.slice(0, meaningLineCount).forEach((line, idx) => {
+        ctx.fillText(line, infoX, y + topPadding + titleFontSize + keywordFontSize + textFontSize + 24 + idx * (textFontSize + 14));
       });
     }
 
     ctx.textAlign = "center";
     ctx.fillStyle = "rgba(240, 189, 104, 0.6)";
     ctx.font = "600 24px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
-    ctx.fillText("—— 每天只翻三张牌 ——", W / 2, H - 80);
+    ctx.fillText(footerText, W / 2, H - 80);
 
     return canvas.toDataURL("image/png", 1.0);
   }
@@ -480,41 +565,105 @@ export default function App() {
       <section className="counter">
         <div>
           <p className="eyebrow">夜市占卜摊</p>
-          <h1>每天只翻三张牌</h1>
+          <h1>抽一张属于你的牌</h1>
           <p>牌面会保存到今天结束，明天再来时摊主会洗出新的结果。</p>
           {!reading && (
-            <div className="question-section">
-              <label className="question-label">今天想问什么？</label>
-              <input
-                type="text"
-                className="question-input"
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                placeholder="写下你的问题（可选）"
-                maxLength={100}
-              />
-            </div>
+            <>
+              <div className="spread-section">
+                <label className="question-label">选择牌阵</label>
+                <div className="spread-options">
+                  {spreads.map((spread) => (
+                    <button
+                      key={spread.id}
+                      className={`spread-option ${selectedSpreadId === spread.id ? "active" : ""}`}
+                      onClick={() => setSelectedSpreadId(spread.id)}
+                      disabled={Boolean(reading)}
+                    >
+                      <span className="spread-icon">{spread.icon}</span>
+                      <div className="spread-info">
+                        <div className="spread-name">{spread.name}</div>
+                        <div className="spread-subtitle">{spread.subtitle}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <p className="spread-description">{currentSpread.description}</p>
+              </div>
+              <div className="question-section">
+                <label className="question-label">今天想问什么？</label>
+                <input
+                  type="text"
+                  className="question-input"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder="写下你的问题（可选）"
+                  maxLength={100}
+                />
+              </div>
+            </>
           )}
-          {reading && reading.question && (
-            <div className="question-display">
-              <span className="question-display-label">今天的问题</span>
-              <p className="question-display-text">{reading.question}</p>
-            </div>
+          {reading && (
+            <>
+              <div className="spread-display">
+                <span className="spread-display-icon">{currentSpread.icon}</span>
+                <span className="spread-display-name">{currentSpread.name}</span>
+                <span className="spread-display-count">{totalCards}张牌</span>
+              </div>
+              {reading.question && (
+                <div className="question-display">
+                  <span className="question-display-label">今天的问题</span>
+                  <p className="question-display-text">{reading.question}</p>
+                </div>
+              )}
+            </>
           )}
         </div>
-        <button onClick={startReading} disabled={Boolean(reading)} className="draw-button">
-          {reading ? "今日已抽牌" : "开始抽牌"}
-        </button>
+        <div className="counter-right">
+          {!reading && (
+            <div className="progress-hint">
+              <span className="progress-hint-icon">🎯</span>
+              <span>共{getPositions(selectedSpreadId).length}张牌</span>
+            </div>
+          )}
+          <button onClick={startReading} disabled={Boolean(reading)} className="draw-button">
+            {reading ? "今日已抽牌" : "开始抽牌"}
+          </button>
+        </div>
       </section>
 
-      <section className="table">
-        {positions.map((position, index) => {
+      {reading && (
+        <div className="reveal-progress">
+          <div className="reveal-progress-info">
+            <span>翻牌进度</span>
+            <span className="reveal-progress-count">{revealed} / {totalCards}</span>
+          </div>
+          <div className="reveal-progress-bar">
+            <div
+              className="reveal-progress-fill"
+              style={{ width: `${(revealed / totalCards) * 100}%` }}
+            />
+          </div>
+          {revealed < totalCards && (
+            <p className="reveal-progress-hint">
+              点击第 {revealed + 1} 张牌 · 「{currentPositions[revealed]}」
+            </p>
+          )}
+        </div>
+      )}
+
+      <section className={`table table-${totalCards}-cards`}>
+        {currentPositions.map((position, index) => {
           const card = selectedCards[index];
           const isRevealed = index < revealed;
           return (
             <article className={`oracle-card ${isRevealed ? "revealed" : ""}`} key={position}>
               <div className="card-inner">
-                <button className="card-back" disabled={!card || isRevealed} onClick={() => setRevealed((value) => Math.max(value, index + 1))}>
+                <button
+                  className="card-back"
+                  disabled={!card || isRevealed}
+                  onClick={() => setRevealed((value) => Math.max(value, index + 1))}
+                >
+                  <span className="card-back-number">{index + 1}</span>
                   <span>{position}</span>
                 </button>
                 {card && (
@@ -524,7 +673,7 @@ export default function App() {
                     </div>
                     <small>{position}</small>
                     <h2>{card.name}</h2>
-                    <strong>{card.keyword}</strong>
+                    <strong style={{ color: card.hue }}>{card.keyword}</strong>
                     <p>{card.meaning}</p>
                   </div>
                 )}
@@ -534,7 +683,7 @@ export default function App() {
         })}
       </section>
 
-      {revealed === 3 && selectedCards.length === 3 && (
+      {reading && revealed === totalCards && selectedCards.length === totalCards && (
         <section className="share-section">
           <button className="share-button" onClick={handleShare} disabled={isGeneratingShare}>
             {isGeneratingShare ? "生成中..." : "✨ 生成分享图"}
