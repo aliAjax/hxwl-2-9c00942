@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { ThemeSwitcher } from "./components/ThemeSwitcher";
 import { ReadingSection } from "./components/ReadingSection";
 import { CardReveal } from "./components/CardReveal";
@@ -72,6 +72,7 @@ export default function App() {
     reading?.spreadId ?? DEFAULT_SPREAD_ID
   );
   const [archiveNotice, setArchiveNotice] = useState<ArchiveResult | null>(null);
+  const archivedReadingRef = useRef<string | null>(null);
 
   useEffect(() => {
     applyTheme(theme);
@@ -141,8 +142,10 @@ export default function App() {
     if (
       reading &&
       isReadingComplete(reading, totalCards) &&
-      selectedCards.length === totalCards
+      selectedCards.length === totalCards &&
+      archivedReadingRef.current !== reading.date
     ) {
+      archivedReadingRef.current = reading.date;
       const positions = getPositions(reading.spreadId);
       const spaceForHistory = reading.spaceId
         ? getSpaceById(spaces, reading.spaceId)
@@ -150,19 +153,22 @@ export default function App() {
       const cardsToUse = reading.spaceId
         ? getCardsForSpace(customCards, reading.spaceId)
         : allCards;
-      const updatedHistory = addReadingToHistory(
-        history,
-        reading,
-        cardsToUse,
-        positions,
-        spaceForHistory
-      );
-      saveHistory(updatedHistory);
-      setHistory(updatedHistory);
+      setHistory((prevHistory) => {
+        const updatedHistory = addReadingToHistory(
+          prevHistory,
+          reading,
+          cardsToUse,
+          positions,
+          spaceForHistory
+        );
+        saveHistory(updatedHistory);
+        return updatedHistory;
+      });
     }
-  }, [reading?.revealed, reading, selectedCards, totalCards, history, customCards, allCards, spaces]);
+  }, [reading, selectedCards, totalCards, customCards, allCards, spaces]);
 
   function handleStartReading() {
+    archivedReadingRef.current = null;
     const positionsCount = getPositionCount(selectedSpreadId);
     const cardsForSpace = getCardsForSpace(customCards, currentSpaceId);
     const next = createReading(
@@ -184,6 +190,7 @@ export default function App() {
   }
 
   function handleClearReading() {
+    archivedReadingRef.current = null;
     setReading(null);
     clearReading();
   }
@@ -232,6 +239,7 @@ export default function App() {
     if (reading) {
       const updatedReading = clearReadingIfFromSpace(reading, spaceId);
       if (updatedReading === null) {
+        archivedReadingRef.current = null;
         setReading(null);
       }
     }
