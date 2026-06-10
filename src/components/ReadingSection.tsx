@@ -39,9 +39,9 @@ export function ReadingSection({
   return (
     <section className="counter">
       <div>
-        <p className="eyebrow">夜市占卜摊</p>
-        <h1>抽一张属于你的牌</h1>
-        <p>牌面会保存到今天结束，明天再来时摊主会洗出新的结果。</p>
+        <p className="eyebrow">🌙 夜市占卜摊</p>
+        <h1>抽一张属于你的灵感牌</h1>
+        <p>摊主已经洗牌完毕，今天的牌面只属于你。答案会保存到今日结束，明天再来时会有新的启示。</p>
         {!hasReading && (
           <>
             <SpaceSelector

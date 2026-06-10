@@ -46,7 +46,22 @@ export const DEFAULT_CARDS: Card[] = [
   { id: "needle", name: "绣针", keyword: "细小修补", meaning: "别试图一次解决全部，先缝好最细的一道裂口。", hue: "#4ca678", glyph: "针" },
   { id: "boat", name: "纸船", keyword: "轻装出发", meaning: "把多余的顾虑放下，事情会比想象中更容易推进。", hue: "#d9904f", glyph: "舟" },
   { id: "mirror", name: "雾镜", keyword: "误读", meaning: "你看到的不一定是对方的真实想法，先确认再行动。", hue: "#8295aa", glyph: "镜" },
-  { id: "bell", name: "铜铃", keyword: "提醒", meaning: "一个重复出现的小信号，今天值得被认真对待。", hue: "#c99a35", glyph: "铃" }
+  { id: "bell", name: "铜铃", keyword: "提醒", meaning: "一个重复出现的小信号，今天值得被认真对待。", hue: "#c99a35", glyph: "铃" },
+  { id: "incense", name: "沉香烟", keyword: "等待酝酿", meaning: "有些事需要时间入味，强行揭盖只会散去香气。", hue: "#8b6914", glyph: "烟" },
+  { id: "compass", name: "旧罗盘", keyword: "方向浮现", meaning: "你曾以为迷路的地方，其实藏着新的坐标。", hue: "#4a7c59", glyph: "盘" },
+  { id: "scroll", name: "未展卷轴", keyword: "隐藏信息", meaning: "重要的内容不在封面上，耐心展开才会看见。", hue: "#a65d7f", glyph: "卷" },
+  { id: "chopsticks", name: "一双筷", keyword: "协作之力", meaning: "单独一根难以成事，找对伙伴事半功倍。", hue: "#c47e4e", glyph: "筷" },
+  { id: "teacup", name: "空茶杯", keyword: "留白空间", meaning: "倒空心中的成见，才能装入新的可能。", hue: "#5f9ea0", glyph: "茶" },
+  { id: "coin", name: "古铜钱", keyword: "方圆之道", meaning: "内心要有原则，外表不妨圆润些。", hue: "#b8860b", glyph: "钱" },
+  { id: "kite", name: "断线风筝", keyword: "意外自由", meaning: "以为失去了控制，却可能飞向更广阔的天空。", hue: "#cd853f", glyph: "鸢" },
+  { id: "seal", name: "朱砂印", keyword: "承诺生效", meaning: "一旦盖下印记，就要为结果负责。", hue: "#c41e3a", glyph: "印" },
+  { id: "fan", name: "折叠扇", keyword: "收放自如", meaning: "知道何时展开锋芒，何时收敛光芒。", hue: "#9370db", glyph: "扇" },
+  { id: "bowl", name: "缺口碗", keyword: "不完美美", meaning: "正因为有缺口，才有机会装入更多惊喜。", hue: "#708090", glyph: "碗" },
+  { id: "thread", name: "红丝线", keyword: "隐秘联结", meaning: "你与某些人和事的缘分，比你以为的更深。", hue: "#dc143c", glyph: "线" },
+  { id: "abacus", name: "旧算盘", keyword: "理清账目", meaning: "是时候算清楚哪些值得投入，哪些该止损。", hue: "#8b4513", glyph: "算" },
+  { id: "rattle", name: "拨浪鼓", keyword: "回归童心", meaning: "用最简单的快乐，化解最复杂的难题。", hue: "#ff6347", glyph: "鼓" },
+  { id: "lock", name: "铜挂锁", keyword: "等待钥匙", meaning: "不是所有门都需要强行打开，等对的时机。", hue: "#696969", glyph: "锁" },
+  { id: "bamboo", name: "竹书签", keyword: "标记进度", meaning: "记得给自己的成长做个记号，回头看时会惊讶。", hue: "#6b8e23", glyph: "竹" },
 ];
 
 export const DEFAULT_SPACE_ID = "default";
