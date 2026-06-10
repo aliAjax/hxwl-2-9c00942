@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 type Card = {
   id: string;
@@ -7,6 +7,7 @@ type Card = {
   meaning: string;
   hue: string;
   glyph: string;
+  isCustom?: boolean;
 };
 
 type Reading = {
@@ -14,7 +15,7 @@ type Reading = {
   cardIds: string[];
 };
 
-const cards: Card[] = [
+const defaultCards: Card[] = [
   { id: "lantern", name: "倒挂灯笼", keyword: "迟来的消息", meaning: "不要急着催促，答案会在你转身之后出现。", hue: "#e05d5d", glyph: "灯" },
   { id: "well", name: "井边银币", keyword: "被忽略的资源", meaning: "你已经拥有一枚能撬动局面的筹码，只是它看起来太普通。", hue: "#6ba3b8", glyph: "井" },
   { id: "moth", name: "月蛾", keyword: "靠近光源", meaning: "今天适合靠近真正吸引你的东西，但要保留退路。", hue: "#b9a76f", glyph: "蛾" },
@@ -27,6 +28,7 @@ const cards: Card[] = [
 
 const positions = ["事件", "阻碍", "建议"];
 const storageKey = "hxwl-2-reading";
+const customCardsKey = "hxwl-2-custom-cards";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -41,23 +43,94 @@ function loadReading(): Reading | null {
   }
 }
 
-function drawCards() {
-  return [...cards]
+function loadCustomCards(): Card[] {
+  try {
+    return JSON.parse(localStorage.getItem(customCardsKey) || "[]") as Card[];
+  } catch {
+    return [];
+  }
+}
+
+function saveCustomCards(cards: Card[]) {
+  localStorage.setItem(customCardsKey, JSON.stringify(cards));
+}
+
+function drawCards(allCards: Card[]) {
+  return [...allCards]
     .sort(() => Math.random() - 0.5)
     .slice(0, 3)
     .map((card) => card.id);
 }
 
+const emptyCard: Card = {
+  id: "",
+  name: "",
+  keyword: "",
+  meaning: "",
+  hue: "#8d6cc4",
+  glyph: "牌",
+  isCustom: true,
+};
+
 export default function App() {
   const [reading, setReading] = useState<Reading | null>(loadReading);
   const [revealed, setRevealed] = useState(reading ? 3 : 0);
-  const selectedCards = useMemo(() => reading?.cardIds.map((id) => cards.find((card) => card.id === id)!) ?? [], [reading]);
+  const [customCards, setCustomCards] = useState<Card[]>(loadCustomCards);
+  const [showDeckManager, setShowDeckManager] = useState(false);
+  const [editingCard, setEditingCard] = useState<Card | null>(null);
+  const [isNewCard, setIsNewCard] = useState(false);
+
+  const allCards = useMemo(() => [...defaultCards, ...customCards], [customCards]);
+  const selectedCards = useMemo(
+    () => reading?.cardIds.map((id) => allCards.find((card) => card.id === id)!) ?? [],
+    [reading, allCards]
+  );
+
+  useEffect(() => {
+    saveCustomCards(customCards);
+  }, [customCards]);
 
   function startReading() {
-    const next = { date: todayKey(), cardIds: drawCards() };
+    const next = { date: todayKey(), cardIds: drawCards(allCards) };
     setReading(next);
     setRevealed(0);
     localStorage.setItem(storageKey, JSON.stringify(next));
+  }
+
+  function handleAddCard() {
+    setEditingCard({ ...emptyCard, id: `custom-${Date.now()}` });
+    setIsNewCard(true);
+  }
+
+  function handleEditCard(card: Card) {
+    setEditingCard({ ...card });
+    setIsNewCard(false);
+  }
+
+  function handleDeleteCard(cardId: string) {
+    if (confirm("确定要删除这张牌吗？")) {
+      setCustomCards((prev) => prev.filter((c) => c.id !== cardId));
+    }
+  }
+
+  function handleSaveCard() {
+    if (!editingCard) return;
+    if (!editingCard.name.trim() || !editingCard.keyword.trim() || !editingCard.meaning.trim()) {
+      alert("请填写完整的牌信息");
+      return;
+    }
+    if (isNewCard) {
+      setCustomCards((prev) => [...prev, editingCard]);
+    } else {
+      setCustomCards((prev) => prev.map((c) => (c.id === editingCard.id ? editingCard : c)));
+    }
+    setEditingCard(null);
+    setIsNewCard(false);
+  }
+
+  function handleCancelEdit() {
+    setEditingCard(null);
+    setIsNewCard(false);
   }
 
   return (
@@ -101,12 +174,172 @@ export default function App() {
       </section>
 
       <section className="deck">
-        {cards.map((card) => (
-          <span key={card.id} style={{ background: card.hue }}>
-            {card.keyword}
-          </span>
-        ))}
+        <div className="deck-header">
+          <span className="deck-title">牌组</span>
+          <button className="deck-manage-button" onClick={() => setShowDeckManager(true)}>
+            牌库管理
+          </button>
+        </div>
+        <div className="deck-tags">
+          {allCards.map((card) => (
+            <span key={card.id} style={{ background: card.hue }}>
+              {card.keyword}
+            </span>
+          ))}
+        </div>
       </section>
+
+      {showDeckManager && (
+        <div className="modal-overlay" onClick={() => !editingCard && setShowDeckManager(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>牌库管理</h2>
+              <button className="modal-close" onClick={() => setShowDeckManager(false)}>
+                ×
+              </button>
+            </div>
+
+            {!editingCard ? (
+              <>
+                <div className="deck-actions">
+                  <button className="add-card-button" onClick={handleAddCard}>
+                    + 新增自定义牌
+                  </button>
+                </div>
+
+                <div className="card-list">
+                  <h3 className="card-section-title">默认牌组</h3>
+                  {defaultCards.map((card) => (
+                    <div key={card.id} className="card-item">
+                      <div className="card-item-glyph" style={{ background: card.hue }}>
+                        {card.glyph}
+                      </div>
+                      <div className="card-item-info">
+                        <h4>{card.name}</h4>
+                        <span className="card-item-keyword" style={{ background: card.hue }}>
+                          {card.keyword}
+                        </span>
+                        <p>{card.meaning}</p>
+                      </div>
+                      <div className="card-item-actions">
+                        <span className="default-badge">默认</span>
+                      </div>
+                    </div>
+                  ))}
+
+                  <h3 className="card-section-title">自定义牌组</h3>
+                  {customCards.length === 0 ? (
+                    <p className="empty-custom">还没有自定义牌，点击上方按钮添加</p>
+                  ) : (
+                    customCards.map((card) => (
+                      <div key={card.id} className="card-item">
+                        <div className="card-item-glyph" style={{ background: card.hue }}>
+                          {card.glyph}
+                        </div>
+                        <div className="card-item-info">
+                          <h4>{card.name}</h4>
+                          <span className="card-item-keyword" style={{ background: card.hue }}>
+                            {card.keyword}
+                          </span>
+                          <p>{card.meaning}</p>
+                        </div>
+                        <div className="card-item-actions">
+                          <button className="edit-button" onClick={() => handleEditCard(card)}>
+                            编辑
+                          </button>
+                          <button className="delete-button" onClick={() => handleDeleteCard(card.id)}>
+                            删除
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="card-form">
+                <h3>{isNewCard ? "新增自定义牌" : "编辑自定义牌"}</h3>
+
+                <div className="form-row">
+                  <label>牌名</label>
+                  <input
+                    type="text"
+                    value={editingCard.name}
+                    onChange={(e) => setEditingCard({ ...editingCard, name: e.target.value })}
+                    placeholder="输入牌的名称"
+                    maxLength={20}
+                  />
+                </div>
+
+                <div className="form-row">
+                  <label>关键词</label>
+                  <input
+                    type="text"
+                    value={editingCard.keyword}
+                    onChange={(e) => setEditingCard({ ...editingCard, keyword: e.target.value })}
+                    placeholder="输入关键词"
+                    maxLength={20}
+                  />
+                </div>
+
+                <div className="form-row">
+                  <label>解释</label>
+                  <textarea
+                    value={editingCard.meaning}
+                    onChange={(e) => setEditingCard({ ...editingCard, meaning: e.target.value })}
+                    placeholder="输入牌的解释"
+                    rows={3}
+                    maxLength={200}
+                  />
+                </div>
+
+                <div className="form-row form-row-inline">
+                  <div className="form-item">
+                    <label>颜色</label>
+                    <input
+                      type="color"
+                      value={editingCard.hue}
+                      onChange={(e) => setEditingCard({ ...editingCard, hue: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-item">
+                    <label>字形</label>
+                    <input
+                      type="text"
+                      value={editingCard.glyph}
+                      onChange={(e) => setEditingCard({ ...editingCard, glyph: e.target.value.slice(0, 1) })}
+                      placeholder="一个字"
+                      maxLength={1}
+                      className="glyph-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="card-preview">
+                  <div className="preview-label">预览</div>
+                  <div className="card-preview-box" style={{ borderColor: editingCard.hue }}>
+                    <div className="glyph" style={{ background: editingCard.hue }}>
+                      {editingCard.glyph || "牌"}
+                    </div>
+                    <h4>{editingCard.name || "牌名"}</h4>
+                    <strong style={{ color: editingCard.hue }}>{editingCard.keyword || "关键词"}</strong>
+                    <p>{editingCard.meaning || "牌的解释"}</p>
+                  </div>
+                </div>
+
+                <div className="form-actions">
+                  <button className="cancel-button" onClick={handleCancelEdit}>
+                    取消
+                  </button>
+                  <button className="save-button" onClick={handleSaveCard}>
+                    保存
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
