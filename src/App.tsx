@@ -14,6 +14,7 @@ type Reading = {
   date: string;
   cardIds: string[];
   revealed: number;
+  question?: string;
 };
 
 type HistoryCard = {
@@ -28,6 +29,7 @@ type HistoryCard = {
 type HistoryRecord = {
   date: string;
   cards: HistoryCard[];
+  question?: string;
 };
 
 const historyKey = "hxwl-2-history";
@@ -160,6 +162,12 @@ function HistoryItem({ record }: { record: HistoryRecord }) {
       </button>
       {expanded && (
         <div className="history-item-cards">
+          {record.question && (
+            <div className="history-question">
+              <span className="history-question-label">问</span>
+              <p className="history-question-text">{record.question}</p>
+            </div>
+          )}
           {record.cards.map((card) => (
             <div key={card.position} className="history-card">
               <div className="history-card-glyph" style={{ background: card.hue }}>
@@ -191,6 +199,7 @@ export default function App() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareImageUrl, setShareImageUrl] = useState<string>("");
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+  const [question, setQuestion] = useState(reading?.question ?? "");
 
   const allCards = useMemo(() => [...defaultCards, ...customCards], [customCards]);
   const selectedCards = useMemo(
@@ -221,6 +230,7 @@ export default function App() {
           hue: card.hue,
           glyph: card.glyph,
         })),
+        question: reading.question,
       };
       addToHistory(record);
       setHistory(loadHistory());
@@ -228,7 +238,8 @@ export default function App() {
   }, [revealed, reading, selectedCards]);
 
   function startReading() {
-    const next = { date: todayKey(), cardIds: drawCards(allCards), revealed: 0 };
+    const trimmed = question.trim();
+    const next: Reading = { date: todayKey(), cardIds: drawCards(allCards), revealed: 0, question: trimmed || undefined };
     setReading(next);
     setRevealed(0);
     localStorage.setItem(storageKey, JSON.stringify(next));
@@ -325,7 +336,18 @@ export default function App() {
     ctx.font = "600 28px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
     ctx.fillText(formatShareDate(reading?.date || todayKey()), W / 2, 230);
 
-    const cardStartY = 300;
+    const shareQuestion = reading?.question;
+    let cardStartY = 300;
+    if (shareQuestion) {
+      ctx.fillStyle = "rgba(240, 189, 104, 0.85)";
+      ctx.font = "700 30px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
+      const questionLines = wrapText(ctx, `「${shareQuestion}」`, W - 160);
+      questionLines.forEach((line, idx) => {
+        ctx.fillText(line, W / 2, 270 + idx * 42);
+      });
+      cardStartY = 270 + questionLines.length * 42 + 30;
+    }
+
     const cardGap = 40;
     const cardHeight = 320;
     const cardWidth = W - 120;
@@ -460,6 +482,25 @@ export default function App() {
           <p className="eyebrow">夜市占卜摊</p>
           <h1>每天只翻三张牌</h1>
           <p>牌面会保存到今天结束，明天再来时摊主会洗出新的结果。</p>
+          {!reading && (
+            <div className="question-section">
+              <label className="question-label">今天想问什么？</label>
+              <input
+                type="text"
+                className="question-input"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                placeholder="写下你的问题（可选）"
+                maxLength={100}
+              />
+            </div>
+          )}
+          {reading && reading.question && (
+            <div className="question-display">
+              <span className="question-display-label">今天的问题</span>
+              <p className="question-display-text">{reading.question}</p>
+            </div>
+          )}
         </div>
         <button onClick={startReading} disabled={Boolean(reading)} className="draw-button">
           {reading ? "今日已抽牌" : "开始抽牌"}
