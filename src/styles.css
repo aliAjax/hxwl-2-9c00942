@@ -58,6 +58,9 @@
 
   --glow-shadow: rgba(240, 189, 104, 0.2);
   --focus-shadow: rgba(240, 189, 104, 0.15);
+
+  --surface-soft: rgba(255, 255, 255, 0.025);
+  --success: rgba(76, 166, 120, 0.35);
 }
 
 :root[data-theme="dawn-morning"] {
@@ -119,6 +122,9 @@
 
   --glow-shadow: rgba(217, 120, 74, 0.18);
   --focus-shadow: rgba(217, 120, 74, 0.15);
+
+  --surface-soft: rgba(61, 48, 40, 0.03);
+  --success: rgba(76, 166, 120, 0.3);
 }
 
 :root[data-theme="rainy-night"] {
@@ -180,6 +186,9 @@
 
   --glow-shadow: rgba(95, 180, 216, 0.2);
   --focus-shadow: rgba(95, 180, 216, 0.15);
+
+  --surface-soft: rgba(255, 255, 255, 0.025);
+  --success: rgba(76, 166, 120, 0.35);
 }
 
 :root {
@@ -3111,4 +3120,412 @@ h1 {
     justify-content: flex-end;
     margin-top: 4px;
   }
+}
+
+/* ===== 空间管理统计与排序 ===== */
+
+/* 空间操作行 - 包含新增按钮和排序控件 */
+.space-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 24px 8px;
+}
+
+@media (max-width: 640px) {
+  .space-actions-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* 排序控件 */
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sort-label {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  transition: color 0.35s ease;
+}
+
+.sort-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sort-button {
+  background: transparent;
+  border: 1px solid var(--border-medium);
+  color: var(--text-secondary);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+}
+
+.sort-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.sort-button.active {
+  background: var(--surface-accent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.sort-arrow {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+/* 空间卡片 - 带统计 */
+.space-card-item {
+  padding: 18px 16px;
+  border: 1px solid var(--surface-light);
+}
+
+.space-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.space-card-title {
+  color: var(--text-primary);
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+  transition: color 0.35s ease;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.space-card-desc {
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+  font-size: 0.88rem;
+  transition: color 0.35s ease;
+}
+
+/* 统计网格 */
+.space-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-color);
+}
+
+@media (max-width: 720px) {
+  .space-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 420px) {
+  .space-stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.space-stat-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--surface-soft);
+  border-radius: 8px;
+  border: 1px solid var(--surface-light);
+  transition: all 0.35s ease;
+}
+
+.space-stat-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.space-stat-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.space-stat-value {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 2px;
+  transition: color 0.35s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.space-stat-spread {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.spread-icon-inline {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.space-stat-label {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  transition: color 0.35s ease;
+}
+
+/* ===== 删除确认对话框 ===== */
+
+.delete-confirm-dialog {
+  padding: 24px;
+}
+
+.delete-confirm-title {
+  color: var(--danger-text);
+  margin: 0 0 16px;
+  font-size: 1.3rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.35s ease;
+}
+
+.delete-warning-icon {
+  font-size: 1.4rem;
+}
+
+.delete-confirm-space {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--surface-accent);
+  border-radius: 10px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-medium);
+  transition: all 0.35s ease;
+}
+
+.delete-confirm-space-icon {
+  font-size: 1.8rem;
+}
+
+.delete-confirm-space-name {
+  color: var(--text-primary);
+  font-size: 1.15rem;
+  font-weight: 800;
+  transition: color 0.35s ease;
+}
+
+/* 删除影响区域 */
+.delete-impact-section {
+  margin-bottom: 20px;
+}
+
+.delete-impact-title {
+  color: var(--text-primary);
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  transition: color 0.35s ease;
+}
+
+.delete-impact-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.delete-impact-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--surface-light);
+  background: var(--surface);
+  transition: all 0.35s ease;
+}
+
+.delete-impact-cards {
+  border-left: 3px solid var(--info);
+  background: color-mix(in srgb, var(--info) 6%, var(--surface));
+}
+
+.delete-impact-reading-danger {
+  border-left: 3px solid var(--danger-bg);
+  background: color-mix(in srgb, var(--danger-bg) 8%, var(--surface));
+}
+
+.delete-impact-reading-safe {
+  border-left: 3px solid var(--success);
+  background: color-mix(in srgb, var(--success) 6%, var(--surface));
+}
+
+.delete-impact-fallback {
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.impact-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  line-height: 1.3;
+}
+
+.impact-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.impact-main {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.4;
+  margin-bottom: 4px;
+  transition: color 0.35s ease;
+}
+
+.impact-main strong {
+  color: var(--accent);
+  font-size: 1.05rem;
+  font-weight: 900;
+  margin: 0 2px;
+  transition: color 0.35s ease;
+}
+
+.delete-impact-reading-danger .impact-main {
+  color: var(--danger-text);
+}
+
+.delete-impact-reading-safe .impact-main {
+  color: var(--success);
+}
+
+.impact-sub {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.5;
+  transition: color 0.35s ease;
+}
+
+/* 今日牌面详细信息 */
+.impact-reading-details {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--surface-soft);
+  border-radius: 8px;
+  border: 1px solid var(--surface-light);
+}
+
+.reading-detail-row {
+  display: flex;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.reading-detail-row + .reading-detail-row {
+  margin-top: 2px;
+}
+
+.reading-detail-label {
+  color: var(--text-muted);
+  font-weight: 600;
+  flex-shrink: 0;
+  width: 48px;
+}
+
+.reading-detail-value {
+  color: var(--text-primary);
+  font-weight: 700;
+  flex: 1;
+  transition: color 0.35s ease;
+}
+
+/* 删除警告 */
+.delete-confirm-warning {
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--danger-bg) 10%, var(--surface));
+  border: 1px dashed var(--danger-bg);
+  border-radius: 8px;
+  color: var(--danger-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.delete-confirm-warning strong {
+  color: var(--danger-text);
+  font-weight: 800;
+}
+
+/* 删除确认按钮行 */
+.delete-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.delete-cancel-btn,
+.delete-confirm-btn {
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  border: 0;
+}
+
+.delete-cancel-btn {
+  background: var(--surface-light);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-medium);
+}
+
+.delete-cancel-btn:hover {
+  background: var(--surface-accent);
+  color: var(--text-primary);
+}
+
+.delete-confirm-btn {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid transparent;
+}
+
+.delete-confirm-btn:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 2px 10px rgba(200, 50, 50, 0.2);
 }

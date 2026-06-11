@@ -467,6 +467,10 @@ export default function App() {
 
       <SpaceManager
         spaces={spaces}
+        customCards={customCards}
+        history={history}
+        reading={reading}
+        customSpreads={customSpreads}
         isOpen={showSpaceManager}
         onClose={() => setShowSpaceManager(false)}
         onAddSpace={handleAddSpace}
