@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { ThemeSwitcher } from "./components/ThemeSwitcher";
 import { ReadingSection } from "./components/ReadingSection";
 import { CardReveal } from "./components/CardReveal";
@@ -11,121 +11,47 @@ import type { ShareConfig } from "./types";
 import { SpaceManager } from "./components/SpaceSelector";
 import { SpreadManager } from "./components/SpreadManager";
 import { loadTheme, saveTheme, applyTheme } from "./data/themeStore";
-import {
-  loadCustomCards,
-  saveCustomCards,
-  getAllCards,
-  getCardById,
-  addCustomCard,
-  updateCustomCard,
-  deleteCustomCard,
-  isCardInReading,
-  getCardsForSpace,
-  deleteCustomCardsBySpaceId,
-  hasAnyCardInReading,
-  duplicateCustomCard,
-  batchDeleteCards,
-  batchMoveCards,
-  batchDuplicateCards,
-  checkStorageCapacity,
-} from "./data/cardStore";
-import {
-  loadReading,
-  saveReading,
-  clearReading,
-  createReading,
-  revealNextCard,
-  isReadingComplete,
-  clearReadingIfFromSpace,
-} from "./data/readingStore";
-import {
-  loadHistory,
-  saveHistory,
-  clearHistory,
-  addReadingToHistory,
-} from "./data/historyStore";
-import {
-  getSpreadById,
-  getPositions,
-  getPositionCount,
-  getAllSpreads,
-  loadCustomSpreads,
-  saveCustomSpreads,
-  addCustomSpread,
-  updateCustomSpread,
-  deleteCustomSpread,
-  isPresetSpread,
-  getSnapshot,
-} from "./data/spreadStore";
-import {
-  loadSpaces,
-  saveSpaces,
-  loadCurrentSpaceId,
-  saveCurrentSpaceId,
-  createSpace,
-  addSpace,
-  updateSpace,
-  deleteSpace,
-  getSpaceById,
-} from "./data/spaceStore";
-import { checkAndArchive } from "./data/archiveService";
 import { todayKey } from "./data/dateUtils";
-import { DEFAULT_SPREAD_ID, DEFAULT_SPACE_ID, DELETED_CARD_PLACEHOLDER } from "./data/constants";
-import type { ThemeId, Reading, Card, HistoryRecord, ArchiveResult, Space, Spread } from "./types";
+import { loadReading } from "./data/readingStore";
+import type { ThemeId } from "./types";
+import { useHistory } from "./hooks/useHistory";
+import { useDeck } from "./hooks/useDeck";
+import { useSpaces } from "./hooks/useSpaces";
+import { useSpreads } from "./hooks/useSpreads";
+import { useDivination } from "./hooks/useDivination";
 
 export default function App() {
   const [theme, setTheme] = useState<ThemeId>(loadTheme);
-  const [reading, setReading] = useState<Reading | null>(loadReading);
-  const [customCards, setCustomCards] = useState<Card[]>(loadCustomCards);
-  const [history, setHistory] = useState<HistoryRecord[]>(loadHistory);
-  const [spaces, setSpaces] = useState<Space[]>(loadSpaces);
-  const [currentSpaceId, setCurrentSpaceId] = useState<string>(loadCurrentSpaceId);
-  const [customSpreads, setCustomSpreads] = useState<Spread[]>(loadCustomSpreads);
-
   const [showDeckManager, setShowDeckManager] = useState(false);
   const [showSpaceManager, setShowSpaceManager] = useState(false);
   const [showSpreadManager, setShowSpreadManager] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
-  const [question, setQuestion] = useState(reading?.question ?? "");
-  const [selectedSpreadId, setSelectedSpreadId] = useState<string>(
-    reading?.spreadId ?? DEFAULT_SPREAD_ID
-  );
-  const [archiveNotice, setArchiveNotice] = useState<ArchiveResult | null>(null);
-  const archivedReadingRef = useRef<string | null>(null);
+
+  const initialReading = useMemo(() => loadReading(), []);
+  const initialSpreadId = initialReading?.spreadId;
+
+  const historyState = useHistory();
+  const deckState = useDeck();
+  const spacesState = useSpaces();
+  const spreadsState = useSpreads(initialSpreadId);
+
+  const divinationState = useDivination({
+    customCards: deckState.customCards,
+    getAllCardsForSpace: deckState.getAllCardsForSpace,
+    getCardsForReading: deckState.getCardsForReading,
+    getSpread: spreadsState.getSpread,
+    getSpreadPositions: spreadsState.getSpreadPositions,
+    getSpreadPositionCount: spreadsState.getSpreadPositionCount,
+    getSpreadSnapshot: spreadsState.getSpreadSnapshot,
+    getSpace: spacesState.getSpace,
+    addCompletedReading: historyState.addCompletedReading,
+  });
 
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
-
-  useEffect(() => {
-    const result = checkAndArchive();
-    if (result.archived.length > 0 || result.discarded > 0) {
-      setArchiveNotice(result);
-      setHistory(loadHistory());
-      setReading(loadReading());
-    }
-  }, []);
-
-  useEffect(() => {
-    saveSpaces(spaces);
-  }, [spaces]);
-
-  useEffect(() => {
-    saveCurrentSpaceId(currentSpaceId);
-  }, [currentSpaceId]);
-
-  useEffect(() => {
-    saveCustomSpreads(customSpreads);
-  }, [customSpreads]);
-
-  useEffect(() => {
-    const allSpreadIds = getAllSpreads(customSpreads).map((s) => s.id);
-    if (!allSpreadIds.includes(selectedSpreadId)) {
-      setSelectedSpreadId(DEFAULT_SPREAD_ID);
-    }
-  }, [customSpreads, selectedSpreadId]);
 
   const handleThemeChange = useCallback((themeId: ThemeId) => {
     setTheme(themeId);
@@ -133,198 +59,106 @@ export default function App() {
     saveTheme(themeId);
   }, []);
 
-  const currentSpread = getSpreadById(
-    reading?.spreadId ?? selectedSpreadId,
-    customSpreads
-  );
-  const currentPositions = currentSpread.positions;
-  const totalCards = currentPositions.length;
-  const currentSpace = getSpaceById(spaces, currentSpaceId) ?? spaces[0];
-  const readingSpace = reading?.spaceId
-    ? getSpaceById(spaces, reading.spaceId)
-    : undefined;
+  const currentSpread = divinationState.reading
+    ? spreadsState.getSpread(divinationState.reading.spreadId)
+    : spreadsState.currentSpread;
+  const currentPositions = divinationState.currentPositions;
+  const totalCards = divinationState.totalCards;
+  const currentSpace = spacesState.currentSpace;
+  const readingSpace = divinationState.readingSpace;
 
-  const allCardsForCurrentSpace = useMemo(
-    () => getCardsForSpace(customCards, currentSpaceId),
-    [customCards, currentSpaceId]
-  );
-
-  const allCards = useMemo(() => getAllCards(customCards), [customCards]);
-  const selectedCards = useMemo(() => {
-    if (!reading) return [];
-    const cardsToUse = reading.spaceId
-      ? getCardsForSpace(customCards, reading.spaceId)
-      : allCards;
-    return reading.cardIds
-      .map((id) => {
-        const card = getCardById(id, cardsToUse);
-        return card ?? (DELETED_CARD_PLACEHOLDER as Card);
-      })
-      .filter((card): card is Card => card !== undefined);
-  }, [reading, customCards, allCards]);
-
-  useEffect(() => {
-    saveCustomCards(customCards);
-  }, [customCards]);
-
-  useEffect(() => {
-    if (reading) {
-      saveReading(reading);
-    }
-  }, [reading]);
-
-  useEffect(() => {
-    if (
-      reading &&
-      isReadingComplete(reading, totalCards) &&
-      selectedCards.length === totalCards &&
-      archivedReadingRef.current !== reading.date
-    ) {
-      archivedReadingRef.current = reading.date;
-      const positions = getPositions(reading.spreadId, customSpreads);
-      const spreadForHistory = getSpreadById(reading.spreadId, customSpreads);
-      const spaceForHistory = reading.spaceId
-        ? getSpaceById(spaces, reading.spaceId)
-        : undefined;
-      const cardsToUse = reading.spaceId
-        ? getCardsForSpace(customCards, reading.spaceId)
-        : allCards;
-      setHistory((prevHistory) => {
-        const updatedHistory = addReadingToHistory(
-          prevHistory,
-          reading,
-          cardsToUse,
-          positions,
-          spreadForHistory,
-          spaceForHistory
-        );
-        saveHistory(updatedHistory);
-        return updatedHistory;
-      });
-    }
-  }, [reading, selectedCards, totalCards, customCards, allCards, spaces, customSpreads]);
+  const allCardsForCurrentSpace = deckState.getAllCardsForSpace(spacesState.currentSpaceId);
+  const selectedCards = divinationState.selectedCards;
 
   function handleStartReading() {
-    archivedReadingRef.current = null;
-    const positionsCount = getPositionCount(selectedSpreadId, customSpreads);
-    const cardsForSpace = getCardsForSpace(customCards, currentSpaceId);
-    const selectedSpread = getSpreadById(selectedSpreadId, customSpreads);
-    const spreadSnapshot = getSnapshot(selectedSpread);
-    const next = createReading(
-      cardsForSpace,
-      positionsCount,
-      selectedSpreadId,
-      currentSpaceId,
-      question,
-      spreadSnapshot
+    divinationState.startReading(
+      spreadsState.selectedSpreadId,
+      spacesState.currentSpaceId
     );
-    setReading(next);
-    setQuestion(next.question ?? "");
-    saveReading(next);
   }
 
   function handleRevealCard(index: number) {
-    if (!reading) return;
-    const updated = revealNextCard(reading, index);
-    setReading(updated);
+    divinationState.revealCard(index);
   }
 
   function handleClearReading() {
-    archivedReadingRef.current = null;
-    setReading(null);
-    clearReading();
+    divinationState.clearReading();
   }
 
   function handleRestartReading() {
-    archivedReadingRef.current = null;
-    setReading(null);
-    clearReading();
+    divinationState.restartReading();
   }
 
-  function handleAddCard(card: Card) {
-    setCustomCards((prev) => addCustomCard(prev, card));
+  function handleAddCard(card: Parameters<typeof deckState.addCard>[0]) {
+    deckState.addCard(card);
   }
 
-  function handleUpdateCard(card: Card) {
-    setCustomCards((prev) => updateCustomCard(prev, card));
+  function handleUpdateCard(card: Parameters<typeof deckState.updateCard>[0]) {
+    deckState.updateCard(card);
   }
 
   function handleDeleteCard(cardId: string) {
-    const isInTodayReading = reading ? isCardInReading(cardId, reading.cardIds) : false;
-    setCustomCards((prev) => deleteCustomCard(prev, cardId));
-    if (isInTodayReading) {
-      handleClearReading();
-    }
+    const wasInReading = deckState.deleteCard(cardId, divinationState.readingCardIds);
+    divinationState.handleCardDeletion(wasInReading);
   }
 
-  function handleDuplicateCard(card: Card, targetSpaceId: string) {
-    const newCard = duplicateCustomCard(card, targetSpaceId);
-    setCustomCards((prev) => addCustomCard(prev, newCard));
+  function handleDuplicateCard(
+    card: Parameters<typeof deckState.duplicateCard>[0],
+    targetSpaceId: Parameters<typeof deckState.duplicateCard>[1]
+  ) {
+    deckState.duplicateCard(card, targetSpaceId);
   }
 
   function handleBatchDeleteCards(cardIds: string[], willResetReading: boolean) {
-    setCustomCards((prev) => batchDeleteCards(prev, cardIds));
+    deckState.batchDelete(cardIds);
     if (willResetReading) {
-      handleClearReading();
+      divinationState.handleBatchCardReset();
     }
   }
 
-  function handleBatchMoveCards(cardIds: string[], targetSpaceId: string) {
-    setCustomCards((prev) => batchMoveCards(prev, cardIds, targetSpaceId));
+  function handleBatchMoveCards(
+    cardIds: string[],
+    targetSpaceId: Parameters<typeof deckState.batchMove>[1]
+  ) {
+    deckState.batchMove(cardIds, targetSpaceId);
   }
 
-  function handleBatchCopyCards(cardIds: string[], targetSpaceId: string) {
-    const updated = batchDuplicateCards(customCards, cardIds, targetSpaceId);
-    const testData = JSON.stringify(updated);
-    if (!checkStorageCapacity(testData)) {
+  function handleBatchCopyCards(
+    cardIds: string[],
+    targetSpaceId: Parameters<typeof deckState.batchCopy>[1]
+  ) {
+    const ok = deckState.batchCopy(cardIds, targetSpaceId);
+    if (!ok) {
       alert("存储空间不足，批量复制后可能超出限制。请删除部分牌或移除图片后重试。");
-      return;
     }
-    setCustomCards(updated);
   }
 
   function handleClearHistory() {
-    clearHistory();
-    setHistory([]);
+    historyState.clearAllHistory();
   }
 
   function handleAddSpace(name: string, icon: string) {
-    const space = createSpace(name, icon);
-    setSpaces((prev) => addSpace(prev, space));
-    setCurrentSpaceId(space.id);
+    spacesState.addSpaceItem(name, icon);
   }
 
-  function handleUpdateSpace(space: Space) {
-    setSpaces((prev) => updateSpace(prev, space));
+  function handleUpdateSpace(space: Parameters<typeof spacesState.updateSpaceItem>[0]) {
+    spacesState.updateSpaceItem(space);
   }
 
   function handleDeleteSpace(spaceId: string): boolean {
-    if (spaceId === DEFAULT_SPACE_ID) {
-      return false;
-    }
-    const hasCardsInReading = reading
-      ? hasAnyCardInReading(spaceId, customCards, reading.cardIds)
-      : false;
-    setCustomCards((prev) => deleteCustomCardsBySpaceId(prev, spaceId));
-    setSpaces((prev) => deleteSpace(prev, spaceId));
+    const { success, affectsReading } = spacesState.deleteSpaceItem(spaceId);
+    if (!success) return false;
 
-    if (reading) {
-      const updatedReading = clearReadingIfFromSpace(
-        reading,
-        spaceId,
-        customCards
-      );
-      if (updatedReading === null) {
-        archivedReadingRef.current = null;
-        setReading(null);
-      }
-    }
+    const hasCardsInReading = deckState.hasAnyCardFromSpaceInReading(
+      spaceId,
+      divinationState.readingCardIds
+    );
 
-    if (currentSpaceId === spaceId) {
-      setCurrentSpaceId(DEFAULT_SPACE_ID);
-    }
+    deckState.deleteCardsBySpaceId(spaceId);
 
-    if (hasCardsInReading) {
+    const readingCleared = divinationState.handleSpaceDeletion(spaceId, deckState.customCards);
+
+    if (hasCardsInReading || readingCleared) {
       setShowSpaceManager(false);
     }
 
@@ -332,30 +166,27 @@ export default function App() {
   }
 
   function handleSpaceChange(spaceId: string) {
-    setCurrentSpaceId(spaceId);
+    spacesState.changeCurrentSpace(spaceId);
   }
 
-  function handleAddSpread(spread: Spread) {
-    setCustomSpreads((prev) => addCustomSpread(prev, spread));
-    setSelectedSpreadId(spread.id);
+  function handleAddSpread(spread: Parameters<typeof spreadsState.addSpreadItem>[0]) {
+    spreadsState.addSpreadItem(spread);
   }
 
-  function handleUpdateSpread(spread: Spread) {
-    setCustomSpreads((prev) => updateCustomSpread(prev, spread));
+  function handleUpdateSpread(spread: Parameters<typeof spreadsState.updateSpreadItem>[0]) {
+    spreadsState.updateSpreadItem(spread);
   }
 
   function handleDeleteSpread(spreadId: string): boolean {
-    if (isPresetSpread(spreadId)) {
-      return false;
+    const activeReadingSpreadId = divinationState.reading?.spreadId;
+    const { success, resetReading } = spreadsState.deleteSpreadItem(
+      spreadId,
+      activeReadingSpreadId
+    );
+    if (resetReading) {
+      divinationState.handleSpreadDeletionReset();
     }
-    setCustomSpreads((prev) => deleteCustomSpread(prev, spreadId));
-    if (selectedSpreadId === spreadId) {
-      setSelectedSpreadId(DEFAULT_SPREAD_ID);
-    }
-    if (reading?.spreadId === spreadId) {
-      handleClearReading();
-    }
-    return true;
+    return success;
   }
 
   async function handleGenerateShare(config: ShareConfig): Promise<string> {
@@ -366,8 +197,8 @@ export default function App() {
         currentPositions,
         currentSpread.name,
         currentSpread.icon,
-        reading?.question,
-        reading?.date ?? todayKey(),
+        divinationState.reading?.question,
+        divinationState.reading?.date ?? todayKey(),
         config,
         readingSpace?.name ?? currentSpace?.name,
         readingSpace?.icon ?? currentSpace?.icon
@@ -378,59 +209,59 @@ export default function App() {
   }
 
   function handleShareClick() {
-    if (!reading || !isReadingComplete(reading, totalCards)) return;
+    if (!divinationState.reading || !divinationState.isComplete) return;
     setShowShareModal(true);
   }
 
   function dismissArchiveNotice() {
-    setArchiveNotice(null);
+    historyState.dismissArchiveNotice();
   }
 
-  const readingCardIds = reading?.cardIds ?? [];
+  const readingCardIds = divinationState.readingCardIds;
 
   return (
     <main className="booth">
       <ThemeSwitcher currentTheme={theme} onThemeChange={handleThemeChange} />
 
-      {archiveNotice && (
+      {historyState.archiveNotice && (
         <div className="archive-notice" onClick={dismissArchiveNotice}>
           <span className="archive-notice-icon">📋</span>
-          <span>{archiveNotice.message}</span>
+          <span>{historyState.archiveNotice.message}</span>
           <span className="archive-notice-close">×</span>
         </div>
       )}
 
       <ReadingSection
-        selectedSpreadId={selectedSpreadId}
-        selectedSpaceId={currentSpaceId}
-        spaces={spaces}
-        customSpreads={customSpreads}
-        question={question}
-        hasReading={!!reading}
-        isReadingComplete={reading ? isReadingComplete(reading, totalCards) : false}
-        readingSpaceId={reading?.spaceId}
-        onSpreadChange={setSelectedSpreadId}
+        selectedSpreadId={spreadsState.selectedSpreadId}
+        selectedSpaceId={spacesState.currentSpaceId}
+        spaces={spacesState.spaces}
+        customSpreads={spreadsState.customSpreads}
+        question={divinationState.question}
+        hasReading={!!divinationState.reading}
+        isReadingComplete={divinationState.isComplete}
+        readingSpaceId={divinationState.reading?.spaceId}
+        onSpreadChange={spreadsState.setSelectedSpreadId}
         onSpaceChange={handleSpaceChange}
-        onQuestionChange={setQuestion}
+        onQuestionChange={divinationState.setQuestion}
         onStartReading={handleStartReading}
         onRestartReading={handleRestartReading}
         onManageSpaces={() => setShowSpaceManager(true)}
         onManageSpreads={() => setShowSpreadManager(true)}
       />
 
-      {reading && (
+      {divinationState.reading && (
         <CardReveal
           cards={selectedCards}
           positions={currentPositions}
-          revealed={reading.revealed}
+          revealed={divinationState.reading.revealed}
           totalCards={totalCards}
           onReveal={handleRevealCard}
-          readingDate={reading.date}
+          readingDate={divinationState.reading.date}
         />
       )}
 
-      {reading &&
-        isReadingComplete(reading, totalCards) &&
+      {divinationState.reading &&
+        divinationState.isComplete &&
         selectedCards.length === totalCards && (
           <section className="share-section">
             <button
@@ -450,17 +281,17 @@ export default function App() {
       />
 
       <HistoryPanel
-        history={history}
-        spaces={spaces}
-        customSpreads={customSpreads}
+        history={historyState.history}
+        spaces={spacesState.spaces}
+        customSpreads={spreadsState.customSpreads}
         isOpen={showHistory}
         onToggle={() => setShowHistory(!showHistory)}
         onClearHistory={handleClearHistory}
       />
 
       <DeckManager
-        customCards={customCards}
-        spaces={spaces}
+        customCards={deckState.customCards}
+        spaces={spacesState.spaces}
         readingCardIds={readingCardIds}
         isOpen={showDeckManager}
         onClose={() => setShowDeckManager(false)}
@@ -474,11 +305,11 @@ export default function App() {
       />
 
       <SpaceManager
-        spaces={spaces}
-        customCards={customCards}
-        history={history}
-        reading={reading}
-        customSpreads={customSpreads}
+        spaces={spacesState.spaces}
+        customCards={deckState.customCards}
+        history={historyState.history}
+        reading={divinationState.reading}
+        customSpreads={spreadsState.customSpreads}
         isOpen={showSpaceManager}
         onClose={() => setShowSpaceManager(false)}
         onAddSpace={handleAddSpace}
@@ -487,7 +318,7 @@ export default function App() {
       />
 
       <SpreadManager
-        customSpreads={customSpreads}
+        customSpreads={spreadsState.customSpreads}
         isOpen={showSpreadManager}
         onClose={() => setShowSpreadManager(false)}
         onAddSpread={handleAddSpread}
@@ -502,8 +333,8 @@ export default function App() {
         positions={currentPositions}
         spreadName={currentSpread.name}
         spreadIcon={currentSpread.icon}
-        question={reading?.question}
-        dateStr={reading?.date}
+        question={divinationState.reading?.question}
+        dateStr={divinationState.reading?.date}
         spaceName={readingSpace?.name ?? currentSpace?.name}
         spaceIcon={readingSpace?.icon ?? currentSpace?.icon}
         isGenerating={isGeneratingShare}
