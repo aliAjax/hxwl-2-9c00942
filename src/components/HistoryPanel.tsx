@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { CardGlyph } from "./CardGlyph";
 import type { HistoryRecord, Space, Spread, SpreadSnapshot } from "../types";
 import { getAllSpreads } from "../data/spreadStore";
@@ -17,6 +17,9 @@ type HistoryPanelProps = {
 
 const ALL_SPACES_ID = "__all_spaces__";
 const ALL_SPREADS_ID = "__all_spreads__";
+const ARCHIVE_FILTER_ALL = "__archive_all__";
+const ARCHIVE_FILTER_ARCHIVED = "__archive_archived__";
+const ARCHIVE_FILTER_ACTIVE = "__archive_active__";
 
 type SpreadFilterOption = {
   id: string;
@@ -24,6 +27,17 @@ type SpreadFilterOption = {
   icon: string;
   isDeleted?: boolean;
 };
+
+type ArchiveFilterValue =
+  | typeof ARCHIVE_FILTER_ALL
+  | typeof ARCHIVE_FILTER_ARCHIVED
+  | typeof ARCHIVE_FILTER_ACTIVE;
+
+const ARCHIVE_FILTER_OPTIONS: { id: ArchiveFilterValue; label: string }[] = [
+  { id: ARCHIVE_FILTER_ALL, label: "全部" },
+  { id: ARCHIVE_FILTER_ACTIVE, label: "未归档" },
+  { id: ARCHIVE_FILTER_ARCHIVED, label: "已归档" },
+];
 
 export function HistoryPanel({
   history,
@@ -35,6 +49,9 @@ export function HistoryPanel({
 }: HistoryPanelProps) {
   const [selectedSpaceId, setSelectedSpaceId] = useState<string>(ALL_SPACES_ID);
   const [selectedSpreadId, setSelectedSpreadId] = useState<string>(ALL_SPREADS_ID);
+  const [questionKeyword, setQuestionKeyword] = useState<string>("");
+  const [cardNameKeyword, setCardNameKeyword] = useState<string>("");
+  const [archiveFilter, setArchiveFilter] = useState<ArchiveFilterValue>(ARCHIVE_FILTER_ALL);
   const allSpreads = getAllSpreads(customSpreads);
 
   const spreadFilterOptions = useMemo<SpreadFilterOption[]>(() => {
@@ -56,6 +73,8 @@ export function HistoryPanel({
   }, [history, allSpreads]);
 
   const filteredHistory = useMemo(() => {
+    const qKeyword = questionKeyword.trim().toLowerCase();
+    const cKeyword = cardNameKeyword.trim().toLowerCase();
     return history.filter((record) => {
       const spaceMatch =
         selectedSpaceId === ALL_SPACES_ID ||
@@ -64,23 +83,67 @@ export function HistoryPanel({
       const recordSpreadId = record.spreadSnapshot?.id ?? record.spreadId;
       const spreadMatch =
         selectedSpreadId === ALL_SPREADS_ID || recordSpreadId === selectedSpreadId;
-      return spaceMatch && spreadMatch;
+      const questionMatch =
+        qKeyword === "" ||
+        (record.question != null && record.question.toLowerCase().includes(qKeyword));
+      const cardNameMatch =
+        cKeyword === "" ||
+        record.cards.some(
+          (card) =>
+            card.name.toLowerCase().includes(cKeyword) ||
+            card.keyword.toLowerCase().includes(cKeyword)
+        );
+      let archiveMatch = true;
+      if (archiveFilter === ARCHIVE_FILTER_ARCHIVED) {
+        archiveMatch = !!record.archived;
+      } else if (archiveFilter === ARCHIVE_FILTER_ACTIVE) {
+        archiveMatch = !record.archived;
+      }
+      return (
+        spaceMatch &&
+        spreadMatch &&
+        questionMatch &&
+        cardNameMatch &&
+        archiveMatch
+      );
     });
-  }, [history, selectedSpaceId, selectedSpreadId]);
+  }, [history, selectedSpaceId, selectedSpreadId, questionKeyword, cardNameKeyword, archiveFilter]);
 
   const hasActiveFilter =
-    selectedSpaceId !== ALL_SPACES_ID || selectedSpreadId !== ALL_SPREADS_ID;
+    selectedSpaceId !== ALL_SPACES_ID ||
+    selectedSpreadId !== ALL_SPREADS_ID ||
+    questionKeyword.trim() !== "" ||
+    cardNameKeyword.trim() !== "" ||
+    archiveFilter !== ARCHIVE_FILTER_ALL;
 
-  const handleClearHistory = () => {
+  const handleClearHistory = useCallback(() => {
     if (confirm("确定要清空所有历史记录吗？此操作不可恢复。")) {
       onClearHistory();
+      setQuestionKeyword("");
+      setCardNameKeyword("");
+      setSelectedSpaceId(ALL_SPACES_ID);
+      setSelectedSpreadId(ALL_SPREADS_ID);
+      setArchiveFilter(ARCHIVE_FILTER_ALL);
     }
-  };
+  }, [onClearHistory]);
 
-  const handleResetFilters = () => {
+  const handleResetFilters = useCallback(() => {
     setSelectedSpaceId(ALL_SPACES_ID);
     setSelectedSpreadId(ALL_SPREADS_ID);
-  };
+    setQuestionKeyword("");
+    setCardNameKeyword("");
+    setArchiveFilter(ARCHIVE_FILTER_ALL);
+  }, []);
+
+  const countActiveFilters = useCallback(() => {
+    let count = 0;
+    if (selectedSpaceId !== ALL_SPACES_ID) count++;
+    if (selectedSpreadId !== ALL_SPREADS_ID) count++;
+    if (questionKeyword.trim() !== "") count++;
+    if (cardNameKeyword.trim() !== "") count++;
+    if (archiveFilter !== ARCHIVE_FILTER_ALL) count++;
+    return count;
+  }, [selectedSpaceId, selectedSpreadId, questionKeyword, cardNameKeyword, archiveFilter]);
 
   return (
     <section className="history-section">
@@ -100,6 +163,28 @@ export function HistoryPanel({
         <div className="history-content">
           {history.length > 0 && (
             <div className="history-filters">
+              <div className="history-filter-search-row">
+                <div className="history-filter-search-group">
+                  <span className="history-filter-label">🔍 问题关键词</span>
+                  <input
+                    type="text"
+                    className="history-filter-search"
+                    placeholder="输入问题中的关键词…"
+                    value={questionKeyword}
+                    onChange={(e) => setQuestionKeyword(e.target.value)}
+                  />
+                </div>
+                <div className="history-filter-search-group">
+                  <span className="history-filter-label">🎴 牌名/关键词</span>
+                  <input
+                    type="text"
+                    className="history-filter-search"
+                    placeholder="输入牌名或关键词…"
+                    value={cardNameKeyword}
+                    onChange={(e) => setCardNameKeyword(e.target.value)}
+                  />
+                </div>
+              </div>
               <div className="history-filter-group">
                 <span className="history-filter-label">空间</span>
                 <div className="history-filter-options">
@@ -144,21 +229,50 @@ export function HistoryPanel({
                   ))}
                 </div>
               </div>
+              <div className="history-filter-group">
+                <span className="history-filter-label">归档状态</span>
+                <div className="history-filter-options">
+                  {ARCHIVE_FILTER_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.id}
+                      className={`history-filter-chip ${archiveFilter === opt.id ? "active" : ""}`}
+                      onClick={() => setArchiveFilter(opt.id)}
+                    >
+                      {opt.id === ARCHIVE_FILTER_ARCHIVED
+                        ? "📦 "
+                        : opt.id === ARCHIVE_FILTER_ACTIVE
+                        ? "✨ "
+                        : ""}
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               {hasActiveFilter && (
-                <button className="history-filter-reset" onClick={handleResetFilters}>
-                  清除筛选
-                </button>
+                <div className="history-filter-actions">
+                  <span className="history-filter-active-count">
+                    已应用 {countActiveFilters()} 项筛选
+                  </span>
+                  <button className="history-filter-reset" onClick={handleResetFilters}>
+                    清除全部筛选
+                  </button>
+                </div>
               )}
             </div>
           )}
           {history.length === 0 ? (
-            <p className="empty-history">还没有历史记录，完成一次抽牌后会自动保存。</p>
-          ) : filteredHistory.length === 0 ? (
             <div className="empty-history-wrapper">
+              <div className="empty-history-icon">📜</div>
+              <p className="empty-history">还没有历史记录，完成一次抽牌后会自动保存。</p>
+            </div>
+          ) : filteredHistory.length === 0 ? (
+            <div className="empty-history-wrapper empty-with-filter">
+              <div className="empty-history-icon">🔍</div>
               <p className="empty-history">当前筛选条件下没有历史记录。</p>
+              <p className="empty-history-hint">尝试调整或清除筛选条件，查看更多结果。</p>
               {hasActiveFilter && (
                 <button className="history-filter-reset-inline" onClick={handleResetFilters}>
-                  清除筛选条件
+                  清除全部筛选条件
                 </button>
               )}
             </div>
