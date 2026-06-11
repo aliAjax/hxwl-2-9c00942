@@ -1,4 +1,4 @@
-import type { Theme, Spread, Card, Space, HistoryCard, SpreadSnapshot } from "../types";
+import type { Theme, Spread, Card, Space, HistoryCard, SpreadSnapshot, ShareThemeColors } from "../types";
 
 export const THEMES: Theme[] = [
   { id: "night-market", name: "夜市", icon: "🌙" },
@@ -138,3 +138,45 @@ export const IMAGE_CONFIG = {
   MAX_IMAGE_SIZE: 400,
   IMAGE_QUALITY: 0.7,
 } as const;
+
+export const SHARE_THEME_COLORS: Record<string, ShareThemeColors> = {
+  "night-market": {
+    bgStart: "#201b24",
+    bgMid: "#3a2830",
+    bgEnd: "#1b2430",
+    gridLine: "rgba(224, 93, 93, 0.2)",
+    textPrimary: "#f7f0df",
+    textSecondary: "#d7c7b8",
+    textMuted: "#8a7a6d",
+    accent: "#f0bd68",
+    cardBg: "rgba(255, 255, 255, 0.04)",
+    cardBorder: "rgba(240, 189, 104, 0.15)",
+    brandName: "夜市占卜摊",
+  },
+  "dawn-morning": {
+    bgStart: "#faf6f0",
+    bgMid: "#f5e6d3",
+    bgEnd: "#e8d4c0",
+    gridLine: "rgba(218, 165, 107, 0.25)",
+    textPrimary: "#3d3028",
+    textSecondary: "#5c4a3e",
+    textMuted: "#8a7a6d",
+    accent: "#d9784a",
+    cardBg: "rgba(61, 48, 40, 0.05)",
+    cardBorder: "rgba(217, 120, 74, 0.15)",
+    brandName: "晨光解签铺",
+  },
+  "rainy-night": {
+    bgStart: "#141e2a",
+    bgMid: "#1e2f3e",
+    bgEnd: "#0f1a24",
+    gridLine: "rgba(100, 160, 200, 0.15)",
+    textPrimary: "#e8f0f5",
+    textSecondary: "#b8c8d4",
+    textMuted: "#6a7d8c",
+    accent: "#5fb4d8",
+    cardBg: "rgba(255, 255, 255, 0.04)",
+    cardBorder: "rgba(95, 180, 216, 0.15)",
+    brandName: "雨夜星图馆",
+  },
+};

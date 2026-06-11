@@ -1,6 +1,7 @@
 import { useState } from "react";
-import type { Card } from "../types";
+import type { Card, ShareConfig, ThemeId, ShareImageSize } from "../types";
 import { formatShareDate } from "../data/dateUtils";
+import { SHARE_THEME_COLORS, THEMES } from "../data/constants";
 
 type ShareModalProps = {
   isOpen: boolean;
@@ -11,9 +12,16 @@ type ShareModalProps = {
   spreadIcon: string;
   question?: string;
   dateStr?: string;
+  spaceName?: string;
+  spaceIcon?: string;
   isGenerating?: boolean;
-  onGenerate: () => Promise<string>;
+  onGenerate: (config: ShareConfig) => Promise<string>;
 };
+
+const SIZE_OPTIONS: { id: ShareImageSize; name: string; icon: string; desc: string }[] = [
+  { id: "long", name: "竖版长图", icon: "📏", desc: "适合分享到朋友圈" },
+  { id: "compact", name: "紧凑版", icon: "📱", desc: "适合快速保存" },
+];
 
 export function ShareModal({
   isOpen,
@@ -24,14 +32,26 @@ export function ShareModal({
   spreadIcon,
   question,
   dateStr,
+  spaceName,
+  spaceIcon,
   isGenerating = false,
   onGenerate,
 }: ShareModalProps) {
   const [shareImageUrl, setShareImageUrl] = useState<string>("");
   const [isGenerated, setIsGenerated] = useState(false);
+  const [config, setConfig] = useState<ShareConfig>({
+    theme: "night-market",
+    size: "long",
+    showQuestion: true,
+    showSpaceName: true,
+    showSpreadName: true,
+  });
+
+  const canGenerate = cards.length > 0 && positions.length > 0;
 
   const handleGenerate = async () => {
-    const url = await onGenerate();
+    if (!canGenerate) return;
+    const url = await onGenerate(config);
     setShareImageUrl(url);
     setIsGenerated(true);
   };
@@ -46,10 +66,19 @@ export function ShareModal({
     document.body.removeChild(link);
   };
 
+  const handleRegenerate = () => {
+    setShareImageUrl("");
+    setIsGenerated(false);
+  };
+
   const handleClose = () => {
     setShareImageUrl("");
     setIsGenerated(false);
     onClose();
+  };
+
+  const updateConfig = <K extends keyof ShareConfig>(key: K, value: ShareConfig[K]) => {
+    setConfig((prev) => ({ ...prev, [key]: value }));
   };
 
   if (!isOpen) return null;
@@ -61,22 +90,106 @@ export function ShareModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h2>今日牌面分享图</h2>
+          <h2>分享图设置</h2>
           <button className="modal-close" onClick={handleClose}>
             ×
           </button>
         </div>
         <div className="share-modal-body">
           {!isGenerated ? (
-            <div className="share-generate-section">
-              <p>点击下方按钮生成精美的分享图</p>
-              <button
-                className="share-button"
-                onClick={handleGenerate}
-                disabled={isGenerating}
-              >
-                {isGenerating ? "生成中..." : "✨ 生成分享图"}
-              </button>
+            <div className="share-config-panel">
+              <div className="config-section">
+                <h3 className="config-section-title">🎨 视觉风格</h3>
+                <div className="theme-options">
+                  {THEMES.map((theme) => (
+                    <button
+                      key={theme.id}
+                      className={`theme-option ${config.theme === theme.id ? "active" : ""}`}
+                      onClick={() => updateConfig("theme", theme.id as ThemeId)}
+                    >
+                      <span className="theme-option-icon">{theme.icon}</span>
+                      <span className="theme-option-name">{theme.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="config-section">
+                <h3 className="config-section-title">📐 图片尺寸</h3>
+                <div className="size-options">
+                  {SIZE_OPTIONS.map((size) => (
+                    <button
+                      key={size.id}
+                      className={`size-option ${config.size === size.id ? "active" : ""}`}
+                      onClick={() => updateConfig("size", size.id as ShareImageSize)}
+                    >
+                      <span className="size-option-icon">{size.icon}</span>
+                      <div className="size-option-info">
+                        <span className="size-option-name">{size.name}</span>
+                        <span className="size-option-desc">{size.desc}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="config-section">
+                <h3 className="config-section-title">📝 显示内容</h3>
+                <div className="toggle-options">
+                  <label className="toggle-option">
+                    <div className="toggle-label">
+                      <span className="toggle-icon">❓</span>
+                      <span className="toggle-text">显示问题</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={config.showQuestion}
+                      onChange={(e) => updateConfig("showQuestion", e.target.checked)}
+                      className="toggle-input"
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
+
+                  <label className="toggle-option">
+                    <div className="toggle-label">
+                      <span className="toggle-icon">🏷️</span>
+                      <span className="toggle-text">显示牌阵名称</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={config.showSpreadName}
+                      onChange={(e) => updateConfig("showSpreadName", e.target.checked)}
+                      className="toggle-input"
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
+
+                  <label className="toggle-option">
+                    <div className="toggle-label">
+                      <span className="toggle-icon">📂</span>
+                      <span className="toggle-text">显示空间名称</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={config.showSpaceName}
+                      onChange={(e) => updateConfig("showSpaceName", e.target.checked)}
+                      className="toggle-input"
+                      disabled={!spaceName}
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="share-generate-section">
+                <button
+                  className="share-button generate-share-btn"
+                  onClick={handleGenerate}
+                  disabled={isGenerating || !canGenerate}
+                >
+                  {isGenerating ? "🖼️ 生成中..." : "✨ 生成分享图"}
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -84,8 +197,8 @@ export function ShareModal({
                 <img src={shareImageUrl} alt="今日牌面分享图" />
               </div>
               <div className="share-modal-actions">
-                <button className="cancel-button" onClick={handleClose}>
-                  关闭
+                <button className="cancel-button" onClick={handleRegenerate}>
+                  重新设置
                 </button>
                 <button
                   className="save-button download-button"
@@ -107,9 +220,15 @@ export async function generateShareImage(
   positions: string[],
   spreadName: string,
   spreadIcon: string,
-  question?: string,
-  dateStr?: string
+  question: string | undefined,
+  dateStr: string | undefined,
+  config: ShareConfig,
+  spaceName?: string,
+  spaceIcon?: string
 ): Promise<string> {
+  const { theme, size, showQuestion, showSpaceName, showSpreadName } = config;
+  const colors = SHARE_THEME_COLORS[theme];
+
   const illustrationMap = new Map<number, HTMLImageElement>();
   await Promise.all(
     cards.map((card, i) => {
@@ -127,73 +246,142 @@ export async function generateShareImage(
   );
 
   const canvas = document.createElement("canvas");
-  const W = 1080;
   const cardCount = positions.length;
-  const cardGap = cardCount <= 3 ? 40 : 28;
+
+  const isCompact = size === "compact";
+  const W = isCompact ? 720 : 1080;
+
+  const baseCardHeight = isCompact ? 200 : 320;
+  const baseCardGap = isCompact ? 20 : 40;
+  const minCardHeight = isCompact ? 120 : 180;
+
+  const cardGap = cardCount <= 3 ? baseCardGap : Math.floor(baseCardGap * 0.7);
   const cardHeight = cardCount <= 3
-    ? 320
-    : Math.max(180, Math.floor(900 / cardCount));
+    ? baseCardHeight
+    : Math.max(minCardHeight, Math.floor((isCompact ? 600 : 900) / cardCount));
   const shareTitle = cardCount === 1 ? "今日一签" : "今日牌面";
   const footerText =
     cardCount === 1 ? "—— 一张牌的指引 ——" : `—— ${cardCount}张牌展开 ——`;
-  const H = Math.max(1440, 400 + cardCount * (cardHeight + cardGap) + 100);
+
+  let headerHeight = 0;
+  const brandY = isCompact ? 50 : 100;
+  headerHeight += brandY + (isCompact ? 30 : 60);
+
+  const titleFontSize = isCompact ? 42 : 64;
+  const titleY = headerHeight + titleFontSize;
+  headerHeight = titleY + (isCompact ? 20 : 30);
+
+  const dateFontSize = isCompact ? 20 : 28;
+  const dateY = headerHeight + dateFontSize;
+  headerHeight = dateY + (isCompact ? 15 : 20);
+
+  if (showSpreadName) {
+    const spreadFontSize = isCompact ? 18 : 24;
+    headerHeight += spreadFontSize + (isCompact ? 15 : 20);
+  }
+
+  if (showSpaceName && spaceName) {
+    const spaceFontSize = isCompact ? 18 : 24;
+    headerHeight += spaceFontSize + (isCompact ? 15 : 20);
+  }
+
+  let questionHeight = 0;
+  if (showQuestion && question) {
+    const questionFontSize = isCompact ? 22 : 30;
+    const testCtx = canvas.getContext("2d")!;
+    testCtx.font = `700 ${questionFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+    const questionLines = wrapText(testCtx, `「${question}」`, W - (isCompact ? 100 : 160));
+    questionHeight = questionLines.length * (questionFontSize + (isCompact ? 10 : 12)) + (isCompact ? 20 : 30);
+  }
+
+  const cardsAreaHeight = cardCount * (cardHeight + cardGap) - cardGap;
+  const footerHeight = isCompact ? 80 : 100;
+  const paddingBottom = isCompact ? 40 : 60;
+
+  const minHeight = isCompact ? 960 : 1440;
+  const totalContentHeight = headerHeight + questionHeight + cardsAreaHeight + footerHeight + paddingBottom;
+  const H = Math.max(minHeight, totalContentHeight);
+
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d")!;
 
   const bgGradient = ctx.createLinearGradient(0, 0, 0, H);
-  bgGradient.addColorStop(0, "#201b24");
-  bgGradient.addColorStop(0.48, "#3a2830");
-  bgGradient.addColorStop(1, "#1b2430");
+  bgGradient.addColorStop(0, colors.bgStart);
+  bgGradient.addColorStop(0.48, colors.bgMid);
+  bgGradient.addColorStop(1, colors.bgEnd);
   ctx.fillStyle = bgGradient;
   ctx.fillRect(0, 0, W, H);
 
-  ctx.strokeStyle = "rgba(224, 93, 93, 0.2)";
+  ctx.strokeStyle = colors.gridLine;
   ctx.lineWidth = 1;
-  for (let x = 0; x < W; x += 42) {
+  const gridStep = isCompact ? 28 : 42;
+  for (let x = 0; x < W; x += gridStep) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
     ctx.lineTo(x, H);
     ctx.stroke();
   }
 
+  let currentY = 0;
+
   ctx.textAlign = "center";
-  ctx.fillStyle = "#f0bd68";
-  ctx.font =
-    "800 32px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
-  ctx.fillText("夜市占卜摊", W / 2, 100);
+  ctx.fillStyle = colors.accent;
+  const brandFontSize = isCompact ? 22 : 32;
+  ctx.font = `800 ${brandFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+  currentY = brandY + brandFontSize;
+  ctx.fillText(colors.brandName, W / 2, currentY);
 
-  ctx.fillStyle = "#f7f0df";
-  ctx.font =
-    "900 64px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
-  ctx.fillText(shareTitle, W / 2, 180);
+  currentY += isCompact ? 20 : 30;
+  ctx.fillStyle = colors.textPrimary;
+  ctx.font = `900 ${titleFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+  currentY += titleFontSize;
+  ctx.fillText(shareTitle, W / 2, currentY);
 
-  ctx.fillStyle = "#d7c7b8";
-  ctx.font =
-    "600 28px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
-  ctx.fillText(formatShareDate(dateStr || new Date().toISOString()), W / 2, 230);
+  currentY += isCompact ? 12 : 20;
+  ctx.fillStyle = colors.textSecondary;
+  ctx.font = `600 ${dateFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+  currentY += dateFontSize;
+  ctx.fillText(formatShareDate(dateStr || new Date().toISOString()), W / 2, currentY);
 
-  ctx.fillStyle = "rgba(240, 189, 104, 0.7)";
-  ctx.font =
-    "700 24px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
-  ctx.fillText(`${spreadIcon} ${spreadName}`, W / 2, 270);
-
-  let cardStartY = 320;
-  if (question) {
-    ctx.fillStyle = "rgba(240, 189, 104, 0.85)";
-    ctx.font =
-      "700 30px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
-    const questionLines = wrapText(ctx, `「${question}」`, W - 160);
-    questionLines.forEach((line, idx) => {
-      ctx.fillText(line, W / 2, cardStartY + idx * 42);
-    });
-    cardStartY = cardStartY + questionLines.length * 42 + 30;
+  if (showSpreadName) {
+    currentY += isCompact ? 12 : 20;
+    ctx.fillStyle = colors.accent + "cc";
+    const spreadFontSize = isCompact ? 18 : 24;
+    ctx.font = `700 ${spreadFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+    currentY += spreadFontSize;
+    ctx.fillText(`${spreadIcon} ${spreadName}`, W / 2, currentY);
   }
 
-  const cardWidth = W - 120;
-  const cardX = 60;
+  if (showSpaceName && spaceName) {
+    currentY += isCompact ? 10 : 15;
+    ctx.fillStyle = colors.textMuted;
+    const spaceFontSize = isCompact ? 16 : 22;
+    ctx.font = `600 ${spaceFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+    currentY += spaceFontSize;
+    const iconText = spaceIcon ? `${spaceIcon} ` : "";
+    ctx.fillText(`${iconText}${spaceName}`, W / 2, currentY);
+  }
+
+  let cardStartY = currentY + (isCompact ? 25 : 40);
+  if (showQuestion && question) {
+    ctx.fillStyle = colors.accent + "d9";
+    const questionFontSize = isCompact ? 22 : 30;
+    ctx.font = `700 ${questionFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+    const questionLines = wrapText(ctx, `「${question}」`, W - (isCompact ? 100 : 160));
+    const lineHeight = questionFontSize + (isCompact ? 10 : 12);
+    questionLines.forEach((line, idx) => {
+      ctx.fillText(line, W / 2, cardStartY + idx * lineHeight + questionFontSize);
+    });
+    cardStartY = cardStartY + questionLines.length * lineHeight + (isCompact ? 20 : 30);
+  }
+
+  const cardWidth = W - (isCompact ? 60 : 120);
+  const cardX = (W - cardWidth) / 2;
   const glyphRatio = cardCount <= 3 ? 0.78 : 0.85;
-  const glyphSize = cardCount <= 3 ? 200 : Math.floor(cardHeight * 0.8);
+  const glyphSize = cardCount <= 3
+    ? Math.floor(cardHeight * 0.62)
+    : Math.floor(cardHeight * 0.8);
   const fontScale =
     cardCount <= 3 ? 1 : Math.max(0.55, 1 - (cardCount - 3) * 0.15);
 
@@ -202,22 +390,25 @@ export async function generateShareImage(
     const position = positions[i];
     const y = cardStartY + i * (cardHeight + cardGap);
 
-    ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
-    drawRoundedRect(ctx, cardX, y, cardWidth, cardHeight, 20);
+    ctx.fillStyle = colors.cardBg;
+    const borderRadius = isCompact ? 12 : 20;
+    drawRoundedRect(ctx, cardX, y, cardWidth, cardHeight, borderRadius);
     ctx.fill();
-    ctx.strokeStyle = "rgba(240, 189, 104, 0.15)";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = colors.cardBorder;
+    ctx.lineWidth = isCompact ? 1 : 2;
     ctx.stroke();
 
-    const glyphX = cardX + 50;
-    const glyphY = y + (cardHeight - glyphSize) / 2;
+    const glyphPadding = isCompact ? 24 : 50;
+    const glyphX = cardX + glyphPadding;
+    const glyphY = y + (cardHeight - glyphSize * glyphRatio) / 2;
     const glyphW = glyphSize;
     const glyphH = glyphSize * glyphRatio;
     const illustImg = illustrationMap.get(i);
 
+    const glyphRadius = isCompact ? 10 : 16;
     if (illustImg) {
       ctx.save();
-      drawRoundedRect(ctx, glyphX, glyphY, glyphW, glyphH, 16);
+      drawRoundedRect(ctx, glyphX, glyphY, glyphW, glyphH, glyphRadius);
       ctx.clip();
       const imgAspect = illustImg.width / illustImg.height;
       const boxAspect = glyphW / glyphH;
@@ -233,11 +424,12 @@ export async function generateShareImage(
       ctx.restore();
     } else {
       ctx.fillStyle = card.hue;
-      drawRoundedRect(ctx, glyphX, glyphY, glyphW, glyphH, 16);
+      drawRoundedRect(ctx, glyphX, glyphY, glyphW, glyphH, glyphRadius);
       ctx.fill();
 
       ctx.fillStyle = "#fffaf0";
-      ctx.font = `900 ${Math.floor(120 * fontScale)}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+      const glyphFontSize = Math.floor(glyphSize * 0.6 * fontScale);
+      ctx.font = `900 ${glyphFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(
@@ -248,20 +440,24 @@ export async function generateShareImage(
       ctx.textBaseline = "alphabetic";
     }
 
-    const infoX = glyphX + glyphSize + 40;
-    const infoWidth = cardWidth - (glyphSize + 90);
+    const infoGap = isCompact ? 20 : 40;
+    const infoX = glyphX + glyphSize + infoGap;
+    const infoWidth = cardWidth - (glyphSize + glyphPadding + infoGap + glyphPadding);
     const meaningLineCount = cardCount <= 3 ? 3 : 2;
-    const titleFontSize = Math.floor(44 * fontScale);
-    const keywordFontSize = Math.floor(30 * fontScale);
-    const textFontSize = Math.floor(26 * fontScale);
-    const topPadding = cardCount <= 3 ? 65 : Math.floor(cardHeight * 0.22);
+    const titleFontSize = Math.floor((isCompact ? 28 : 44) * fontScale);
+    const keywordFontSize = Math.floor((isCompact ? 20 : 30) * fontScale);
+    const textFontSize = Math.floor((isCompact ? 17 : 26) * fontScale);
+    const topPadding = cardCount <= 3
+      ? Math.floor(cardHeight * 0.22)
+      : Math.floor(cardHeight * 0.22);
 
     ctx.textAlign = "left";
-    ctx.fillStyle = "#8a7a6d";
-    ctx.font = `700 ${Math.floor(26 * fontScale)}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+    ctx.fillStyle = colors.textMuted;
+    const positionFontSize = Math.floor((isCompact ? 18 : 26) * fontScale);
+    ctx.font = `700 ${positionFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
     ctx.fillText(position, infoX, y + topPadding);
 
-    ctx.fillStyle = "#f7f0df";
+    ctx.fillStyle = colors.textPrimary;
     ctx.font = `900 ${titleFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
     ctx.fillText(card.name, infoX, y + topPadding + titleFontSize + 8);
 
@@ -273,7 +469,7 @@ export async function generateShareImage(
       y + topPadding + titleFontSize + keywordFontSize + 16
     );
 
-    ctx.fillStyle = "#d7c7b8";
+    ctx.fillStyle = colors.textSecondary;
     ctx.font = `500 ${textFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
     const meaningLines = wrapText(ctx, card.meaning, infoWidth);
     meaningLines.slice(0, meaningLineCount).forEach((line, idx) => {
@@ -292,10 +488,10 @@ export async function generateShareImage(
   }
 
   ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(240, 189, 104, 0.6)";
-  ctx.font =
-    "600 24px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif";
-  ctx.fillText(footerText, W / 2, H - 80);
+  ctx.fillStyle = colors.accent + "99";
+  const footerFontSize = isCompact ? 18 : 24;
+  ctx.font = `600 ${footerFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+  ctx.fillText(footerText, W / 2, H - (isCompact ? 40 : 80));
 
   return canvas.toDataURL("image/png", 1.0);
 }

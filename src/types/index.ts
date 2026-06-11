@@ -1,5 +1,29 @@
 export type ThemeId = "night-market" | "dawn-morning" | "rainy-night";
 
+export type ShareImageSize = "long" | "compact";
+
+export type ShareConfig = {
+  theme: ThemeId;
+  size: ShareImageSize;
+  showQuestion: boolean;
+  showSpaceName: boolean;
+  showSpreadName: boolean;
+};
+
+export type ShareThemeColors = {
+  bgStart: string;
+  bgMid: string;
+  bgEnd: string;
+  gridLine: string;
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+  accent: string;
+  cardBg: string;
+  cardBorder: string;
+  brandName: string;
+};
+
 export type Theme = {
   id: ThemeId;
   name: string;

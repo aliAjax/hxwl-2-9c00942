@@ -7,6 +7,7 @@ import { DeckManager } from "./components/DeckManager";
 import { HistoryPanel } from "./components/HistoryPanel";
 import { ShareModal } from "./components/ShareModal";
 import { generateShareImage } from "./components/ShareModal";
+import type { ShareConfig } from "./types";
 import { SpaceManager } from "./components/SpaceSelector";
 import { SpreadManager } from "./components/SpreadManager";
 import { loadTheme, saveTheme, applyTheme } from "./data/themeStore";
@@ -357,7 +358,7 @@ export default function App() {
     return true;
   }
 
-  async function handleGenerateShare(): Promise<string> {
+  async function handleGenerateShare(config: ShareConfig): Promise<string> {
     setIsGeneratingShare(true);
     try {
       return generateShareImage(
@@ -366,7 +367,10 @@ export default function App() {
         currentSpread.name,
         currentSpread.icon,
         reading?.question,
-        reading?.date ?? todayKey()
+        reading?.date ?? todayKey(),
+        config,
+        readingSpace?.name ?? currentSpace?.name,
+        readingSpace?.icon ?? currentSpace?.icon
       );
     } finally {
       setIsGeneratingShare(false);
@@ -500,6 +504,8 @@ export default function App() {
         spreadIcon={currentSpread.icon}
         question={reading?.question}
         dateStr={reading?.date}
+        spaceName={readingSpace?.name ?? currentSpace?.name}
+        spaceIcon={readingSpace?.icon ?? currentSpace?.icon}
         isGenerating={isGeneratingShare}
         onGenerate={handleGenerateShare}
       />
