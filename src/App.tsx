@@ -308,7 +308,11 @@ export default function App() {
     setSpaces((prev) => deleteSpace(prev, spaceId));
 
     if (reading) {
-      const updatedReading = clearReadingIfFromSpace(reading, spaceId);
+      const updatedReading = clearReadingIfFromSpace(
+        reading,
+        spaceId,
+        customCards
+      );
       if (updatedReading === null) {
         archivedReadingRef.current = null;
         setReading(null);

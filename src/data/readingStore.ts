@@ -103,9 +103,22 @@ export function isReadingFromSpace(reading: Reading, spaceId: string): boolean {
 
 export function clearReadingIfFromSpace(
   reading: Reading | null,
-  spaceId: string
+  spaceId: string,
+  customCards?: Card[]
 ): Reading | null {
-  if (reading && reading.spaceId === spaceId && spaceId !== DEFAULT_SPACE_ID) {
+  if (!reading) return reading;
+
+  const isSameSpace = reading.spaceId === spaceId && spaceId !== DEFAULT_SPACE_ID;
+  let hasSpaceCards = false;
+
+  if (customCards && !isSameSpace) {
+    const spaceCardIds = new Set(
+      customCards.filter((c) => c.spaceId === spaceId).map((c) => c.id)
+    );
+    hasSpaceCards = reading.cardIds.some((id) => spaceCardIds.has(id));
+  }
+
+  if (isSameSpace || hasSpaceCards) {
     clearReading();
     return null;
   }
