@@ -30,7 +30,7 @@ export function ReadingSection({
   onManageSpaces,
 }: ReadingSectionProps) {
   const spreads = getAllSpreads();
-  const currentSpread = getSpreadById(hasReading ? readingSpaceId ? selectedSpreadId : selectedSpreadId : selectedSpreadId);
+  const currentSpread = getSpreadById(selectedSpreadId);
   const positionCount = currentSpread.positions.length;
   const readingSpace = readingSpaceId
     ? spaces.find((s) => s.id === readingSpaceId)

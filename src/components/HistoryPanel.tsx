@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { CardGlyph } from "./CardGlyph";
 import type { HistoryRecord, Space } from "../types";
-import { getSpreadById } from "../data/spreadStore";
+import { getSpreadById, getAllSpreads } from "../data/spreadStore";
 import { formatDate } from "../data/dateUtils";
 import { DEFAULT_SPACE_ID } from "../data/constants";
 
@@ -13,6 +13,9 @@ type HistoryPanelProps = {
   onClearHistory: () => void;
 };
 
+const ALL_SPACES_ID = "__all_spaces__";
+const ALL_SPREADS_ID = "__all_spreads__";
+
 export function HistoryPanel({
   history,
   spaces,
@@ -20,10 +23,34 @@ export function HistoryPanel({
   onToggle,
   onClearHistory,
 }: HistoryPanelProps) {
+  const [selectedSpaceId, setSelectedSpaceId] = useState<string>(ALL_SPACES_ID);
+  const [selectedSpreadId, setSelectedSpreadId] = useState<string>(ALL_SPREADS_ID);
+  const spreads = getAllSpreads();
+
+  const filteredHistory = useMemo(() => {
+    return history.filter((record) => {
+      const spaceMatch =
+        selectedSpaceId === ALL_SPACES_ID ||
+        record.spaceId === selectedSpaceId ||
+        (!record.spaceId && selectedSpaceId === DEFAULT_SPACE_ID);
+      const spreadMatch =
+        selectedSpreadId === ALL_SPREADS_ID || record.spreadId === selectedSpreadId;
+      return spaceMatch && spreadMatch;
+    });
+  }, [history, selectedSpaceId, selectedSpreadId]);
+
+  const hasActiveFilter =
+    selectedSpaceId !== ALL_SPACES_ID || selectedSpreadId !== ALL_SPREADS_ID;
+
   const handleClearHistory = () => {
     if (confirm("确定要清空所有历史记录吗？此操作不可恢复。")) {
       onClearHistory();
     }
+  };
+
+  const handleResetFilters = () => {
+    setSelectedSpaceId(ALL_SPACES_ID);
+    setSelectedSpreadId(ALL_SPREADS_ID);
   };
 
   return (
@@ -31,7 +58,7 @@ export function HistoryPanel({
       <div className="history-header">
         <button className="history-toggle" onClick={onToggle}>
           <span className="history-title">历史记录</span>
-          <span className="history-count">{history.length} 条</span>
+          <span className="history-count">{filteredHistory.length} 条</span>
           <span className={`history-arrow ${isOpen ? "expanded" : ""}`}>▾</span>
         </button>
         {history.length > 0 && isOpen && (
@@ -42,11 +69,69 @@ export function HistoryPanel({
       </div>
       {isOpen && (
         <div className="history-content">
+          {history.length > 0 && (
+            <div className="history-filters">
+              <div className="history-filter-group">
+                <span className="history-filter-label">空间</span>
+                <div className="history-filter-options">
+                  <button
+                    className={`history-filter-chip ${selectedSpaceId === ALL_SPACES_ID ? "active" : ""}`}
+                    onClick={() => setSelectedSpaceId(ALL_SPACES_ID)}
+                  >
+                    全部
+                  </button>
+                  {spaces.map((space) => (
+                    <button
+                      key={space.id}
+                      className={`history-filter-chip ${selectedSpaceId === space.id ? "active" : ""}`}
+                      onClick={() => setSelectedSpaceId(space.id)}
+                    >
+                      {space.icon} {space.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="history-filter-group">
+                <span className="history-filter-label">牌阵</span>
+                <div className="history-filter-options">
+                  <button
+                    className={`history-filter-chip ${selectedSpreadId === ALL_SPREADS_ID ? "active" : ""}`}
+                    onClick={() => setSelectedSpreadId(ALL_SPREADS_ID)}
+                  >
+                    全部
+                  </button>
+                  {spreads.map((spread) => (
+                    <button
+                      key={spread.id}
+                      className={`history-filter-chip ${selectedSpreadId === spread.id ? "active" : ""}`}
+                      onClick={() => setSelectedSpreadId(spread.id)}
+                    >
+                      {spread.icon} {spread.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {hasActiveFilter && (
+                <button className="history-filter-reset" onClick={handleResetFilters}>
+                  清除筛选
+                </button>
+              )}
+            </div>
+          )}
           {history.length === 0 ? (
             <p className="empty-history">还没有历史记录，完成一次抽牌后会自动保存。</p>
+          ) : filteredHistory.length === 0 ? (
+            <div className="empty-history-wrapper">
+              <p className="empty-history">当前筛选条件下没有历史记录。</p>
+              {hasActiveFilter && (
+                <button className="history-filter-reset-inline" onClick={handleResetFilters}>
+                  清除筛选条件
+                </button>
+              )}
+            </div>
           ) : (
             <div className="history-list">
-              {history.map((record) => (
+              {filteredHistory.map((record) => (
                 <HistoryItem key={record.date} record={record} spaces={spaces} />
               ))}
             </div>

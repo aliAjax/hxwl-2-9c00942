@@ -1606,6 +1606,20 @@ h1 {
   .history-item-spread {
     font-size: 0.7rem;
   }
+
+  .history-filters {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .history-filter-options {
+    gap: 4px;
+  }
+
+  .history-filter-chip {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+  }
 }
 
 .share-section {
@@ -2213,6 +2227,104 @@ h1 {
   color: var(--text-muted);
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+.history-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--surface-light);
+  margin-bottom: 12px;
+}
+
+.history-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-filter-label {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.history-filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.history-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: var(--surface-light);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.history-filter-chip:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.history-filter-chip.active {
+  background: var(--surface-active);
+  border-color: var(--accent);
+  color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--glow-shadow);
+}
+
+.history-filter-reset {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid var(--border-strongest);
+  color: var(--accent);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-size: 0.85rem;
+}
+
+.history-filter-reset:hover {
+  background: var(--surface-accent);
+  border-color: var(--accent);
+}
+
+.history-filter-reset-inline {
+  display: block;
+  margin: 12px auto 0;
+  background: transparent;
+  border: 1px solid var(--border-strongest);
+  color: var(--accent);
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-size: 0.9rem;
+}
+
+.history-filter-reset-inline:hover {
+  background: var(--surface-accent);
+  border-color: var(--accent);
+}
+
+.empty-history-wrapper {
+  text-align: center;
 }
 
 .spread-display-space {
