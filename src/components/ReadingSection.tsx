@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { getAllSpreads, getSpreadById } from "../data/spreadStore";
 import { SpaceSelector } from "./SpaceSelector";
 import type { Space } from "../types";
@@ -8,11 +9,13 @@ type ReadingSectionProps = {
   spaces: Space[];
   question: string;
   hasReading: boolean;
+  isReadingComplete: boolean;
   readingSpaceId?: string;
   onSpreadChange: (spreadId: string) => void;
   onSpaceChange: (spaceId: string) => void;
   onQuestionChange: (question: string) => void;
   onStartReading: () => void;
+  onRestartReading: () => void;
   onManageSpaces: () => void;
 };
 
@@ -22,11 +25,13 @@ export function ReadingSection({
   spaces,
   question,
   hasReading,
+  isReadingComplete,
   readingSpaceId,
   onSpreadChange,
   onSpaceChange,
   onQuestionChange,
   onStartReading,
+  onRestartReading,
   onManageSpaces,
 }: ReadingSectionProps) {
   const spreads = getAllSpreads();
@@ -35,6 +40,20 @@ export function ReadingSection({
   const readingSpace = readingSpaceId
     ? spaces.find((s) => s.id === readingSpaceId)
     : undefined;
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+
+  const handleRestartClick = () => {
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmRestart = () => {
+    setShowConfirmDialog(false);
+    onRestartReading();
+  };
+
+  const handleCancelRestart = () => {
+    setShowConfirmDialog(false);
+  };
 
   return (
     <section className="counter">
@@ -101,10 +120,57 @@ export function ReadingSection({
             <span>共{positionCount}张牌</span>
           </div>
         )}
-        <button onClick={onStartReading} disabled={hasReading} className="draw-button">
-          {hasReading ? "今日已抽牌" : "开始抽牌"}
-        </button>
+        {hasReading ? (
+          <div className="reading-actions">
+            <button onClick={handleRestartClick} className="restart-button">
+              🔄 重新开始今日抽牌
+            </button>
+            <button disabled className="draw-button">
+              今日已抽牌
+            </button>
+          </div>
+        ) : (
+          <button onClick={onStartReading} className="draw-button">
+            开始抽牌
+          </button>
+        )}
       </div>
+
+      {showConfirmDialog && (
+        <div className="modal-overlay" onClick={handleCancelRestart}>
+          <div
+            className="modal-content confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2>重新抽牌</h2>
+              <button className="modal-close" onClick={handleCancelRestart}>
+                ×
+              </button>
+            </div>
+            <div className="confirm-modal-body">
+              <p>确定要重新开始今日抽牌吗？</p>
+              {isReadingComplete ? (
+                <p className="confirm-hint">
+                  已完成的牌面已保存到历史记录中，重新抽牌不会删除历史记录。
+                </p>
+              ) : (
+                <p className="confirm-hint">
+                  当前未完成的牌面将被清除。
+                </p>
+              )}
+            </div>
+            <div className="confirm-modal-actions">
+              <button className="cancel-button" onClick={handleCancelRestart}>
+                取消
+              </button>
+              <button className="confirm-button danger" onClick={handleConfirmRestart}>
+                确认重新抽牌
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

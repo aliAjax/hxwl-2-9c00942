@@ -196,6 +196,12 @@ export default function App() {
     clearReading();
   }
 
+  function handleRestartReading() {
+    archivedReadingRef.current = null;
+    setReading(null);
+    clearReading();
+  }
+
   function handleAddCard(card: Card) {
     setCustomCards((prev) => addCustomCard(prev, card));
   }
@@ -310,11 +316,13 @@ export default function App() {
         spaces={spaces}
         question={question}
         hasReading={!!reading}
+        isReadingComplete={reading ? isReadingComplete(reading, totalCards) : false}
         readingSpaceId={reading?.spaceId}
         onSpreadChange={setSelectedSpreadId}
         onSpaceChange={handleSpaceChange}
         onQuestionChange={setQuestion}
         onStartReading={handleStartReading}
+        onRestartReading={handleRestartReading}
         onManageSpaces={() => setShowSpaceManager(true)}
       />
 

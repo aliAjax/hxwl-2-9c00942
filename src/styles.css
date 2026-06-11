@@ -41,6 +41,7 @@
   --danger-text: #f0a0a0;
   --danger-border: rgba(224, 93, 93, 0.4);
   --danger-strong: rgba(224, 93, 93, 0.4);
+  --danger-bg: #d9534f;
 
   --info: rgba(107, 163, 184, 0.3);
   --info-hover: rgba(107, 163, 184, 0.5);
@@ -101,6 +102,7 @@
   --danger-text: #c85248;
   --danger-border: rgba(200, 82, 72, 0.35);
   --danger-strong: rgba(200, 82, 72, 0.35);
+  --danger-bg: #c85248;
 
   --info: rgba(83, 143, 166, 0.22);
   --info-hover: rgba(83, 143, 166, 0.38);
@@ -161,6 +163,7 @@
   --danger-text: #e098a0;
   --danger-border: rgba(200, 100, 110, 0.4);
   --danger-strong: rgba(200, 100, 110, 0.4);
+  --danger-bg: #c8646e;
 
   --info: rgba(120, 180, 160, 0.25);
   --info-hover: rgba(120, 180, 160, 0.42);
@@ -463,6 +466,30 @@ h1 {
 .draw-button:disabled {
   cursor: not-allowed;
   opacity: 0.66;
+}
+
+.reading-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.restart-button {
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  padding: 10px 16px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.restart-button:hover {
+  background: var(--surface-light);
+  color: var(--text-primary);
+  border-color: var(--border-color);
 }
 
 .reveal-progress {
@@ -970,6 +997,59 @@ h1 {
 
 .modal-close:hover {
   color: var(--text-primary);
+}
+
+.confirm-modal {
+  max-width: 440px;
+}
+
+.confirm-modal-body {
+  padding: 24px;
+}
+
+.confirm-modal-body p {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  line-height: 1.6;
+  transition: color 0.35s ease;
+}
+
+.confirm-hint {
+  color: var(--text-secondary) !important;
+  font-size: 0.9rem !important;
+  margin-bottom: 0 !important;
+}
+
+.confirm-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 0 24px 24px;
+}
+
+.confirm-button {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 800;
+  cursor: pointer;
+  border: 0;
+  transition: all 0.25s ease;
+  background: var(--button-bg);
+  color: var(--button-text);
+}
+
+.confirm-button:hover {
+  filter: brightness(1.08);
+}
+
+.confirm-button.danger {
+  background: var(--danger-bg);
+  color: #fff;
+}
+
+.confirm-button.danger:hover {
+  filter: brightness(1.1);
 }
 
 .deck-actions {
