@@ -157,7 +157,27 @@ export function DeckManager({
           </button>
         </div>
 
-        {!editingCard ? (
+        {editingCard ? (
+          <CardForm
+            card={editingCard}
+            spaces={spaces}
+            isNewCard={isNewCard}
+            isUploadingImage={isUploadingImage}
+            onCardChange={setEditingCard}
+            onImageUpload={handleImageUpload}
+            onRemoveImage={handleRemoveImage}
+            onSave={handleSaveCard}
+            onCancel={handleCancelEdit}
+          />
+        ) : duplicatingCard ? (
+          <DuplicateCardModal
+            card={duplicatingCard}
+            spaces={spaces}
+            currentSpaceId={selectedSpaceId}
+            onConfirm={handleConfirmDuplicate}
+            onCancel={handleCancelDuplicate}
+          />
+        ) : (
           <>
             <div className="space-tabs">
               {spaces.map((space) => (
@@ -185,27 +205,7 @@ export function DeckManager({
               onDuplicateCard={handleDuplicateCard}
             />
           </>
-        ) : editingCard ? (
-          <CardForm
-            card={editingCard}
-            spaces={spaces}
-            isNewCard={isNewCard}
-            isUploadingImage={isUploadingImage}
-            onCardChange={setEditingCard}
-            onImageUpload={handleImageUpload}
-            onRemoveImage={handleRemoveImage}
-            onSave={handleSaveCard}
-            onCancel={handleCancelEdit}
-          />
-        ) : duplicatingCard ? (
-          <DuplicateCardModal
-            card={duplicatingCard}
-            spaces={spaces}
-            currentSpaceId={selectedSpaceId}
-            onConfirm={handleConfirmDuplicate}
-            onCancel={handleCancelDuplicate}
-          />
-        ) : null}
+        )}
       </div>
     </div>
   );
