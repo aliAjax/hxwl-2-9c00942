@@ -21,6 +21,7 @@ import {
   getCardsForSpace,
   deleteCustomCardsBySpaceId,
   hasAnyCardInReading,
+  duplicateCustomCard,
 } from "./data/cardStore";
 import {
   loadReading,
@@ -211,6 +212,11 @@ export default function App() {
     }
   }
 
+  function handleDuplicateCard(card: Card, targetSpaceId: string) {
+    const newCard = duplicateCustomCard(card, targetSpaceId);
+    setCustomCards((prev) => addCustomCard(prev, newCard));
+  }
+
   function handleClearHistory() {
     clearHistory();
     setHistory([]);
@@ -360,6 +366,7 @@ export default function App() {
         onAddCard={handleAddCard}
         onUpdateCard={handleUpdateCard}
         onDeleteCard={handleDeleteCard}
+        onDuplicateCard={handleDuplicateCard}
       />
 
       <SpaceManager

@@ -75,6 +75,20 @@ export function deleteCustomCardsBySpaceId(cards: Card[], spaceId: string): Card
   return cards.filter((c) => c.spaceId !== spaceId);
 }
 
+export function duplicateCustomCard(card: Card, targetSpaceId: string): Card {
+  return {
+    name: card.name,
+    keyword: card.keyword,
+    meaning: card.meaning,
+    hue: card.hue,
+    glyph: card.glyph,
+    illustration: card.illustration,
+    isCustom: true,
+    id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    spaceId: targetSpaceId,
+  };
+}
+
 export function isCardInReading(cardId: string, cardIds: string[]): boolean {
   return cardIds.includes(cardId);
 }

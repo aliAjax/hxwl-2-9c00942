@@ -19,6 +19,7 @@ type DeckManagerProps = {
   onAddCard: (card: Card) => void;
   onUpdateCard: (card: Card) => void;
   onDeleteCard: (cardId: string) => void;
+  onDuplicateCard: (card: Card, targetSpaceId: string) => void;
 };
 
 export function DeckManager({
@@ -30,11 +31,13 @@ export function DeckManager({
   onAddCard,
   onUpdateCard,
   onDeleteCard,
+  onDuplicateCard,
 }: DeckManagerProps) {
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [isNewCard, setIsNewCard] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [selectedSpaceId, setSelectedSpaceId] = useState<string>(DEFAULT_SPACE_ID);
+  const [duplicatingCard, setDuplicatingCard] = useState<Card | null>(null);
 
   if (!isOpen) return null;
 
@@ -49,6 +52,20 @@ export function DeckManager({
   const handleEditCard = (card: Card) => {
     setEditingCard({ ...card });
     setIsNewCard(false);
+  };
+
+  const handleDuplicateCard = (card: Card) => {
+    setDuplicatingCard(card);
+  };
+
+  const handleConfirmDuplicate = (targetSpaceId: string) => {
+    if (!duplicatingCard) return;
+    onDuplicateCard(duplicatingCard, targetSpaceId);
+    setDuplicatingCard(null);
+  };
+
+  const handleCancelDuplicate = () => {
+    setDuplicatingCard(null);
   };
 
   const handleDeleteCard = (cardId: string) => {
@@ -165,9 +182,10 @@ export function DeckManager({
               onAddCard={handleAddCard}
               onEditCard={handleEditCard}
               onDeleteCard={handleDeleteCard}
+              onDuplicateCard={handleDuplicateCard}
             />
           </>
-        ) : (
+        ) : editingCard ? (
           <CardForm
             card={editingCard}
             spaces={spaces}
@@ -179,7 +197,15 @@ export function DeckManager({
             onSave={handleSaveCard}
             onCancel={handleCancelEdit}
           />
-        )}
+        ) : duplicatingCard ? (
+          <DuplicateCardModal
+            card={duplicatingCard}
+            spaces={spaces}
+            currentSpaceId={selectedSpaceId}
+            onConfirm={handleConfirmDuplicate}
+            onCancel={handleCancelDuplicate}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -191,12 +217,14 @@ function CardList({
   onAddCard,
   onEditCard,
   onDeleteCard,
+  onDuplicateCard,
 }: {
   customCards: Card[];
   currentSpace?: Space;
   onAddCard: () => void;
   onEditCard: (card: Card) => void;
   onDeleteCard: (cardId: string) => void;
+  onDuplicateCard: (card: Card) => void;
 }) {
   const showAddButton = !currentSpace?.isDefault || true;
 
@@ -256,6 +284,9 @@ function CardList({
               <div className="card-item-actions">
                 <button className="edit-button" onClick={() => onEditCard(card)}>
                   编辑
+                </button>
+                <button className="copy-button" onClick={() => onDuplicateCard(card)}>
+                  复制
                 </button>
                 <button className="delete-button" onClick={() => onDeleteCard(card.id)}>
                   删除
@@ -407,6 +438,84 @@ function CardForm({
         </button>
         <button className="save-button" onClick={onSave}>
           保存
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DuplicateCardModal({
+  card,
+  spaces,
+  currentSpaceId,
+  onConfirm,
+  onCancel,
+}: {
+  card: Card;
+  spaces: Space[];
+  currentSpaceId: string;
+  onConfirm: (targetSpaceId: string) => void;
+  onCancel: () => void;
+}) {
+  const [selectedTargetSpaceId, setSelectedTargetSpaceId] = useState<string>(
+    spaces.find((s) => s.id !== currentSpaceId)?.id ?? spaces[0]?.id ?? ""
+  );
+
+  const availableSpaces = spaces.filter((s) => s.id !== currentSpaceId);
+
+  return (
+    <div className="card-form">
+      <h3>复制牌到其他空间</h3>
+
+      <div className="duplicate-card-preview">
+        <div className="card-preview-box" style={{ borderColor: card.hue }}>
+          <CardGlyph card={card} />
+          <h4>{card.name}</h4>
+          <strong style={{ color: card.hue }}>{card.keyword}</strong>
+          <p>{card.meaning}</p>
+        </div>
+      </div>
+
+      <div className="form-row">
+        <label>选择目标空间</label>
+        {availableSpaces.length === 0 ? (
+          <p className="empty-custom">没有其他可用的空间，请先创建新空间</p>
+        ) : (
+          <div className="space-select-list">
+            {availableSpaces.map((space) => (
+              <label
+                key={space.id}
+                className={`space-select-item ${
+                  selectedTargetSpaceId === space.id ? "selected" : ""
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="targetSpace"
+                  value={space.id}
+                  checked={selectedTargetSpaceId === space.id}
+                  onChange={() => setSelectedTargetSpaceId(space.id)}
+                  style={{ display: "none" }}
+                />
+                <span className="space-select-icon">{space.icon}</span>
+                <span className="space-select-name">{space.name}</span>
+                {space.isDefault && <span className="default-badge">默认</span>}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="form-actions">
+        <button className="cancel-button" onClick={onCancel}>
+          取消
+        </button>
+        <button
+          className="save-button"
+          onClick={() => onConfirm(selectedTargetSpaceId)}
+          disabled={availableSpaces.length === 0}
+        >
+          确认复制
         </button>
       </div>
     </div>
