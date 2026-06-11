@@ -102,14 +102,30 @@ export function ShareModal({
   );
 }
 
-export function generateShareImage(
+export async function generateShareImage(
   cards: Card[],
   positions: string[],
   spreadName: string,
   spreadIcon: string,
   question?: string,
   dateStr?: string
-): string {
+): Promise<string> {
+  const illustrationMap = new Map<number, HTMLImageElement>();
+  await Promise.all(
+    cards.map((card, i) => {
+      if (!card.illustration) return Promise.resolve();
+      return new Promise<void>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          illustrationMap.set(i, img);
+          resolve();
+        };
+        img.onerror = () => resolve();
+        img.src = card.illustration!;
+      });
+    })
+  );
+
   const canvas = document.createElement("canvas");
   const W = 1080;
   const cardCount = positions.length;
@@ -195,21 +211,42 @@ export function generateShareImage(
 
     const glyphX = cardX + 50;
     const glyphY = y + (cardHeight - glyphSize) / 2;
+    const glyphW = glyphSize;
+    const glyphH = glyphSize * glyphRatio;
+    const illustImg = illustrationMap.get(i);
 
-    ctx.fillStyle = card.hue;
-    drawRoundedRect(ctx, glyphX, glyphY, glyphSize, glyphSize * glyphRatio, 16);
-    ctx.fill();
+    if (illustImg) {
+      ctx.save();
+      drawRoundedRect(ctx, glyphX, glyphY, glyphW, glyphH, 16);
+      ctx.clip();
+      const imgAspect = illustImg.width / illustImg.height;
+      const boxAspect = glyphW / glyphH;
+      let sx = 0, sy = 0, sw = illustImg.width, sh = illustImg.height;
+      if (imgAspect > boxAspect) {
+        sw = illustImg.height * boxAspect;
+        sx = (illustImg.width - sw) / 2;
+      } else {
+        sh = illustImg.width / boxAspect;
+        sy = (illustImg.height - sh) / 2;
+      }
+      ctx.drawImage(illustImg, sx, sy, sw, sh, glyphX, glyphY, glyphW, glyphH);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = card.hue;
+      drawRoundedRect(ctx, glyphX, glyphY, glyphW, glyphH, 16);
+      ctx.fill();
 
-    ctx.fillStyle = "#fffaf0";
-    ctx.font = `900 ${Math.floor(120 * fontScale)}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(
-      card.glyph,
-      glyphX + glyphSize / 2,
-      glyphY + (glyphSize * glyphRatio) / 2
-    );
-    ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = "#fffaf0";
+      ctx.font = `900 ${Math.floor(120 * fontScale)}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(
+        card.glyph,
+        glyphX + glyphW / 2,
+        glyphY + glyphH / 2
+      );
+      ctx.textBaseline = "alphabetic";
+    }
 
     const infoX = glyphX + glyphSize + 40;
     const infoWidth = cardWidth - (glyphSize + 90);
