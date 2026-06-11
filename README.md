@@ -4,7 +4,7 @@
 
 ## 环境要求
 
-- Node.js >= 18.0.0
+- Node.js >= 20.19.0（或 >= 22.12.0）
 - npm >= 9.0.0
 
 ## 快速开始
@@ -23,12 +23,13 @@ npm run dev
 |------|------|
 | `npm run dev` | 启动开发服务器，默认端口 6102 |
 | `npm run build` | 类型检查 + 生产构建，输出到 `dist/` 目录 |
+| `npm run build:app` | 仅执行 Vite 生产构建 |
 | `npm run preview` | 本地预览生产构建结果，端口 6102 |
 | `npm run type-check` | 仅执行 TypeScript 类型检查，不生成产物 |
 | `npm test` | 运行所有测试（单次执行） |
 | `npm run test:watch` | 监听模式运行测试 |
 | `npm run test:ui` | 启动 Vitest UI 界面 |
-| `npm run check` | **统一质量检查**：类型检查 + 测试 |
+| `npm run check` | **统一质量检查**：类型检查 + 测试 + 生产构建 |
 
 ## 质量检查流程
 
@@ -44,10 +45,16 @@ npm run dev
    - 失败时输出详细的测试失败信息
    - 退出码：`1`
 
+3. **生产构建** (`npm run build:app`)
+   - 使用 Vite 构建生产版本
+   - 失败时输出 Vite 构建错误
+   - 退出码：`1`
+
 ### 定位问题
 
 - 如果 `check` 命令在第一步失败：**类型问题**，检查 TypeScript 编译错误输出
 - 如果 `check` 命令在第二步失败：**测试问题**，检查 Vitest 输出的失败用例
+- 如果 `check` 命令在第三步失败：**构建问题**，检查 Vite 构建错误输出
 
 ## 浏览器验证
 

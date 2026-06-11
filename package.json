@@ -6,12 +6,13 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
+    "build:app": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "type-check": "tsc -b --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "check": "npm run type-check && npm run test"
+    "check": "npm run type-check && npm run test && npm run build:app"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.1.1",
