@@ -203,12 +203,15 @@ export default function App() {
     archivedReadingRef.current = null;
     const positionsCount = getPositionCount(selectedSpreadId, customSpreads);
     const cardsForSpace = getCardsForSpace(customCards, currentSpaceId);
+    const selectedSpread = getSpreadById(selectedSpreadId, customSpreads);
+    const spreadSnapshot = getSnapshot(selectedSpread);
     const next = createReading(
       cardsForSpace,
       positionsCount,
       selectedSpreadId,
       currentSpaceId,
-      question
+      question,
+      spreadSnapshot
     );
     setReading(next);
     setQuestion(next.question ?? "");

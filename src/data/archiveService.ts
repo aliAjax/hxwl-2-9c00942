@@ -1,7 +1,7 @@
-import type { Reading, HistoryRecord, ArchiveResult, Space } from "../types";
+import type { Reading, HistoryRecord, ArchiveResult, Space, Spread, SpreadSnapshot } from "../types";
 import { loadRawReading, clearReading } from "./readingStore";
 import { loadHistory, saveHistory, addRecord, createArchivedRecord } from "./historyStore";
-import { getPositions, getSpreadById } from "./spreadStore";
+import { getSpreadOrPlaceholder } from "./spreadStore";
 import { getAllCards, loadCustomCards } from "./cardStore";
 import { loadSpaces, getSpaceById } from "./spaceStore";
 import { todayKey, isToday } from "./dateUtils";
@@ -27,8 +27,16 @@ export function checkAndArchive(): ArchiveResult {
 
   const customCards = loadCustomCards();
   const allCards = getAllCards(customCards);
-  const positions = getPositions(rawReading.spreadId);
-  const spread = getSpreadById(rawReading.spreadId);
+
+  let spread: Spread | SpreadSnapshot;
+  if (rawReading.spreadSnapshot) {
+    spread = rawReading.spreadSnapshot;
+  } else {
+    spread = getSpreadOrPlaceholder(rawReading.spreadId);
+  }
+
+  const positions = spread.positions;
+
   const history = loadHistory();
   const spaces = loadSpaces();
   const space = rawReading.spaceId

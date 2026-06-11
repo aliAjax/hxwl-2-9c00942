@@ -53,6 +53,7 @@ export type Reading = {
   revealed: number;
   question?: string;
   spreadId: string;
+  spreadSnapshot?: SpreadSnapshot;
   spaceId?: string;
 };
 

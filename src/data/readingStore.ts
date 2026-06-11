@@ -1,4 +1,4 @@
-import type { Reading, Card } from "../types";
+import type { Reading, Card, SpreadSnapshot } from "../types";
 import {
   STORAGE_KEYS,
   DEFAULT_SPREAD_ID,
@@ -17,6 +17,7 @@ function normalizeReading(
     revealed: raw.revealed ?? 0,
     spreadId: raw.spreadId ?? DEFAULT_SPREAD_ID,
     spaceId: raw.spaceId ?? DEFAULT_SPACE_ID,
+    spreadSnapshot: raw.spreadSnapshot,
   };
 }
 
@@ -58,7 +59,8 @@ export function createReading(
   positionsCount: number,
   spreadId: string,
   spaceId: string = DEFAULT_SPACE_ID,
-  question?: string
+  question?: string,
+  spreadSnapshot?: SpreadSnapshot
 ): Reading {
   return {
     date: todayKey(),
@@ -67,6 +69,7 @@ export function createReading(
     question: question?.trim() || undefined,
     spreadId,
     spaceId,
+    spreadSnapshot,
   };
 }
 
