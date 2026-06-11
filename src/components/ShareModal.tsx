@@ -253,54 +253,83 @@ export async function generateShareImage(
 
   const baseCardHeight = isCompact ? 200 : 320;
   const baseCardGap = isCompact ? 20 : 40;
-  const minCardHeight = isCompact ? 120 : 180;
+  const minCardHeight = isCompact ? 130 : 200;
 
-  const cardGap = cardCount <= 3 ? baseCardGap : Math.floor(baseCardGap * 0.7);
-  const cardHeight = cardCount <= 3
-    ? baseCardHeight
-    : Math.max(minCardHeight, Math.floor((isCompact ? 600 : 900) / cardCount));
+  const cardGap = cardCount <= 3 ? baseCardGap : Math.floor(baseCardGap * 0.65);
+
+  const targetCardsArea = isCompact
+    ? Math.max(450, 900 - cardCount * 30)
+    : Math.max(700, 1300 - cardCount * 40);
+  const idealCardHeight = Math.floor(
+    (targetCardsArea - (cardCount - 1) * cardGap) / cardCount
+  );
+  const cardHeight = Math.max(minCardHeight, idealCardHeight);
+
   const shareTitle = cardCount === 1 ? "今日一签" : "今日牌面";
   const footerText =
     cardCount === 1 ? "—— 一张牌的指引 ——" : `—— ${cardCount}张牌展开 ——`;
 
-  let headerHeight = 0;
-  const brandY = isCompact ? 50 : 100;
-  headerHeight += brandY + (isCompact ? 30 : 60);
-
+  const brandFontSize = isCompact ? 22 : 32;
   const titleFontSize = isCompact ? 42 : 64;
-  const titleY = headerHeight + titleFontSize;
-  headerHeight = titleY + (isCompact ? 20 : 30);
-
   const dateFontSize = isCompact ? 20 : 28;
-  const dateY = headerHeight + dateFontSize;
-  headerHeight = dateY + (isCompact ? 15 : 20);
+  const spreadFontSize = isCompact ? 18 : 24;
+  const spaceFontSize = isCompact ? 16 : 22;
+  const questionFontSize = isCompact ? 22 : 30;
+  const footerFontSize = isCompact ? 18 : 24;
+
+  const brandY = isCompact ? 50 : 100;
+  const gapAfterBrand = isCompact ? 20 : 30;
+  const gapAfterTitle = isCompact ? 12 : 20;
+  const gapAfterDate = isCompact ? 15 : 20;
+  const gapAfterSpread = isCompact ? 12 : 20;
+  const gapAfterSpace = isCompact ? 10 : 15;
+  const gapBeforeCards = isCompact ? 25 : 40;
+  const gapAfterQuestion = isCompact ? 20 : 30;
+  const footerY = isCompact ? 40 : 80;
+  const paddingBottom = isCompact ? 20 : 40;
+
+  const measureCanvas = document.createElement("canvas");
+  const measureCtx = measureCanvas.getContext("2d")!;
+
+  let layoutY = brandY + brandFontSize;
+  layoutY += gapAfterBrand;
+  layoutY += titleFontSize;
+  layoutY += gapAfterTitle;
+  layoutY += dateFontSize;
+  layoutY += gapAfterDate;
 
   if (showSpreadName) {
-    const spreadFontSize = isCompact ? 18 : 24;
-    headerHeight += spreadFontSize + (isCompact ? 15 : 20);
+    layoutY += spreadFontSize;
+    layoutY += gapAfterSpread;
   }
 
   if (showSpaceName && spaceName) {
-    const spaceFontSize = isCompact ? 18 : 24;
-    headerHeight += spaceFontSize + (isCompact ? 15 : 20);
+    layoutY += spaceFontSize;
+    layoutY += gapAfterSpace;
   }
+
+  layoutY += gapBeforeCards;
 
   let questionHeight = 0;
   if (showQuestion && question) {
-    const questionFontSize = isCompact ? 22 : 30;
-    const testCtx = canvas.getContext("2d")!;
-    testCtx.font = `700 ${questionFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
-    const questionLines = wrapText(testCtx, `「${question}」`, W - (isCompact ? 100 : 160));
-    questionHeight = questionLines.length * (questionFontSize + (isCompact ? 10 : 12)) + (isCompact ? 20 : 30);
+    measureCtx.font = `700 ${questionFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+    const questionLines = wrapText(
+      measureCtx,
+      `「${question}」`,
+      W - (isCompact ? 100 : 160)
+    );
+    const lineHeight = questionFontSize + (isCompact ? 10 : 12);
+    questionHeight = questionLines.length * lineHeight + gapAfterQuestion;
   }
 
-  const cardsAreaHeight = cardCount * (cardHeight + cardGap) - cardGap;
-  const footerHeight = isCompact ? 80 : 100;
-  const paddingBottom = isCompact ? 40 : 60;
+  layoutY += questionHeight;
 
+  const cardsAreaHeight = cardCount * (cardHeight + cardGap) - cardGap;
+  const contentEndY = layoutY + cardsAreaHeight;
+  const footerPositionY = contentEndY + footerY;
+  const totalHeight = footerPositionY + paddingBottom;
   const minHeight = isCompact ? 960 : 1440;
-  const totalContentHeight = headerHeight + questionHeight + cardsAreaHeight + footerHeight + paddingBottom;
-  const H = Math.max(minHeight, totalContentHeight);
+  const H = Math.max(minHeight, totalHeight);
 
   canvas.width = W;
   canvas.height = H;
@@ -323,67 +352,94 @@ export async function generateShareImage(
     ctx.stroke();
   }
 
-  let currentY = 0;
+  let currentY = brandY + brandFontSize;
 
   ctx.textAlign = "center";
   ctx.fillStyle = colors.accent;
-  const brandFontSize = isCompact ? 22 : 32;
   ctx.font = `800 ${brandFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
-  currentY = brandY + brandFontSize;
   ctx.fillText(colors.brandName, W / 2, currentY);
 
-  currentY += isCompact ? 20 : 30;
+  currentY += gapAfterBrand;
   ctx.fillStyle = colors.textPrimary;
   ctx.font = `900 ${titleFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
   currentY += titleFontSize;
   ctx.fillText(shareTitle, W / 2, currentY);
 
-  currentY += isCompact ? 12 : 20;
+  currentY += gapAfterTitle;
   ctx.fillStyle = colors.textSecondary;
   ctx.font = `600 ${dateFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
   currentY += dateFontSize;
   ctx.fillText(formatShareDate(dateStr || new Date().toISOString()), W / 2, currentY);
 
   if (showSpreadName) {
-    currentY += isCompact ? 12 : 20;
+    currentY += gapAfterSpread;
     ctx.fillStyle = colors.accent + "cc";
-    const spreadFontSize = isCompact ? 18 : 24;
     ctx.font = `700 ${spreadFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
     currentY += spreadFontSize;
     ctx.fillText(`${spreadIcon} ${spreadName}`, W / 2, currentY);
   }
 
   if (showSpaceName && spaceName) {
-    currentY += isCompact ? 10 : 15;
+    currentY += gapAfterSpace;
     ctx.fillStyle = colors.textMuted;
-    const spaceFontSize = isCompact ? 16 : 22;
     ctx.font = `600 ${spaceFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
     currentY += spaceFontSize;
     const iconText = spaceIcon ? `${spaceIcon} ` : "";
     ctx.fillText(`${iconText}${spaceName}`, W / 2, currentY);
   }
 
-  let cardStartY = currentY + (isCompact ? 25 : 40);
+  let cardStartY = currentY + gapBeforeCards;
+
   if (showQuestion && question) {
     ctx.fillStyle = colors.accent + "d9";
-    const questionFontSize = isCompact ? 22 : 30;
     ctx.font = `700 ${questionFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
-    const questionLines = wrapText(ctx, `「${question}」`, W - (isCompact ? 100 : 160));
+    const questionLines = wrapText(
+      ctx,
+      `「${question}」`,
+      W - (isCompact ? 100 : 160)
+    );
     const lineHeight = questionFontSize + (isCompact ? 10 : 12);
     questionLines.forEach((line, idx) => {
-      ctx.fillText(line, W / 2, cardStartY + idx * lineHeight + questionFontSize);
+      ctx.fillText(
+        line,
+        W / 2,
+        cardStartY + idx * lineHeight + questionFontSize
+      );
     });
-    cardStartY = cardStartY + questionLines.length * lineHeight + (isCompact ? 20 : 30);
+    cardStartY = cardStartY + questionLines.length * lineHeight + gapAfterQuestion;
   }
 
   const cardWidth = W - (isCompact ? 60 : 120);
   const cardX = (W - cardWidth) / 2;
+  const glyphPadding = isCompact ? 24 : 50;
+
   const glyphRatio = cardCount <= 3 ? 0.78 : 0.85;
-  const glyphSize = cardCount <= 3
-    ? Math.floor(cardHeight * 0.62)
-    : Math.floor(cardHeight * 0.8);
-  const fontScale =
-    cardCount <= 3 ? 1 : Math.max(0.55, 1 - (cardCount - 3) * 0.15);
+  const glyphSize = Math.floor(
+    cardHeight * (cardCount <= 3 ? 0.62 : 0.76)
+  );
+  const glyphH = glyphSize * glyphRatio;
+
+  const fontScale = Math.max(
+    0.5,
+    cardCount <= 3 ? 1 : 1 - (cardCount - 3) * 0.12
+  );
+
+  const infoGap = isCompact ? 20 : 40;
+  const infoX = glyphPadding * 2 + glyphSize + infoGap;
+  const infoWidth = cardWidth - infoX - glyphPadding;
+
+  const posFont = Math.floor((isCompact ? 18 : 26) * fontScale);
+  const nameFont = Math.floor((isCompact ? 28 : 44) * fontScale);
+  const keywordFont = Math.floor((isCompact ? 20 : 30) * fontScale);
+  const meaningFont = Math.floor((isCompact ? 17 : 26) * fontScale);
+  const meaningLineCount = cardHeight < 160 ? 1 : cardCount <= 3 ? 3 : 2;
+
+  const contentHeight =
+    posFont + 8 + nameFont + 16 + keywordFont + 24 +
+    meaningLineCount * (meaningFont + 12);
+
+  let topPadding = Math.floor((cardHeight - contentHeight) / 2);
+  if (topPadding < 12) topPadding = 12;
 
   for (let i = 0; i < cardCount; i++) {
     const card = cards[i];
@@ -398,21 +454,21 @@ export async function generateShareImage(
     ctx.lineWidth = isCompact ? 1 : 2;
     ctx.stroke();
 
-    const glyphPadding = isCompact ? 24 : 50;
     const glyphX = cardX + glyphPadding;
-    const glyphY = y + (cardHeight - glyphSize * glyphRatio) / 2;
-    const glyphW = glyphSize;
-    const glyphH = glyphSize * glyphRatio;
+    const glyphY = y + (cardHeight - glyphH) / 2;
     const illustImg = illustrationMap.get(i);
 
     const glyphRadius = isCompact ? 10 : 16;
     if (illustImg) {
       ctx.save();
-      drawRoundedRect(ctx, glyphX, glyphY, glyphW, glyphH, glyphRadius);
+      drawRoundedRect(ctx, glyphX, glyphY, glyphSize, glyphH, glyphRadius);
       ctx.clip();
       const imgAspect = illustImg.width / illustImg.height;
-      const boxAspect = glyphW / glyphH;
-      let sx = 0, sy = 0, sw = illustImg.width, sh = illustImg.height;
+      const boxAspect = glyphSize / glyphH;
+      let sx = 0,
+        sy = 0,
+        sw = illustImg.width,
+        sh = illustImg.height;
       if (imgAspect > boxAspect) {
         sw = illustImg.height * boxAspect;
         sx = (illustImg.width - sw) / 2;
@@ -420,78 +476,65 @@ export async function generateShareImage(
         sh = illustImg.width / boxAspect;
         sy = (illustImg.height - sh) / 2;
       }
-      ctx.drawImage(illustImg, sx, sy, sw, sh, glyphX, glyphY, glyphW, glyphH);
+      ctx.drawImage(
+        illustImg,
+        sx,
+        sy,
+        sw,
+        sh,
+        glyphX,
+        glyphY,
+        glyphSize,
+        glyphH
+      );
       ctx.restore();
     } else {
       ctx.fillStyle = card.hue;
-      drawRoundedRect(ctx, glyphX, glyphY, glyphW, glyphH, glyphRadius);
+      drawRoundedRect(ctx, glyphX, glyphY, glyphSize, glyphH, glyphRadius);
       ctx.fill();
 
       ctx.fillStyle = "#fffaf0";
-      const glyphFontSize = Math.floor(glyphSize * 0.6 * fontScale);
+      const glyphFontSize = Math.floor(glyphSize * 0.55);
       ctx.font = `900 ${glyphFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(
-        card.glyph,
-        glyphX + glyphW / 2,
-        glyphY + glyphH / 2
-      );
+      ctx.fillText(card.glyph, glyphX + glyphSize / 2, glyphY + glyphH / 2);
       ctx.textBaseline = "alphabetic";
     }
 
-    const infoGap = isCompact ? 20 : 40;
-    const infoX = glyphX + glyphSize + infoGap;
-    const infoWidth = cardWidth - (glyphSize + glyphPadding + infoGap + glyphPadding);
-    const meaningLineCount = cardCount <= 3 ? 3 : 2;
-    const titleFontSize = Math.floor((isCompact ? 28 : 44) * fontScale);
-    const keywordFontSize = Math.floor((isCompact ? 20 : 30) * fontScale);
-    const textFontSize = Math.floor((isCompact ? 17 : 26) * fontScale);
-    const topPadding = cardCount <= 3
-      ? Math.floor(cardHeight * 0.22)
-      : Math.floor(cardHeight * 0.22);
+    const textX = cardX + infoX;
 
     ctx.textAlign = "left";
     ctx.fillStyle = colors.textMuted;
-    const positionFontSize = Math.floor((isCompact ? 18 : 26) * fontScale);
-    ctx.font = `700 ${positionFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
-    ctx.fillText(position, infoX, y + topPadding);
+    ctx.font = `700 ${posFont}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+    ctx.fillText(position, textX, y + topPadding + posFont);
+
+    let textY = y + topPadding + posFont + 8;
 
     ctx.fillStyle = colors.textPrimary;
-    ctx.font = `900 ${titleFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
-    ctx.fillText(card.name, infoX, y + topPadding + titleFontSize + 8);
+    ctx.font = `900 ${nameFont}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+    textY += nameFont;
+    ctx.fillText(card.name, textX, textY);
 
+    textY += 16;
     ctx.fillStyle = card.hue;
-    ctx.font = `800 ${keywordFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
-    ctx.fillText(
-      card.keyword,
-      infoX,
-      y + topPadding + titleFontSize + keywordFontSize + 16
-    );
+    ctx.font = `800 ${keywordFont}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+    textY += keywordFont;
+    ctx.fillText(card.keyword, textX, textY);
 
+    textY += 24;
     ctx.fillStyle = colors.textSecondary;
-    ctx.font = `500 ${textFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+    ctx.font = `500 ${meaningFont}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
     const meaningLines = wrapText(ctx, card.meaning, infoWidth);
     meaningLines.slice(0, meaningLineCount).forEach((line, idx) => {
-      ctx.fillText(
-        line,
-        infoX,
-        y +
-          topPadding +
-          titleFontSize +
-          keywordFontSize +
-          textFontSize +
-          24 +
-          idx * (textFontSize + 14)
-      );
+      ctx.fillText(line, textX, textY + idx * (meaningFont + 12));
     });
   }
 
   ctx.textAlign = "center";
   ctx.fillStyle = colors.accent + "99";
-  const footerFontSize = isCompact ? 18 : 24;
   ctx.font = `600 ${footerFontSize}px Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif`;
-  ctx.fillText(footerText, W / 2, H - (isCompact ? 40 : 80));
+  ctx.fillText(footerText, W / 2, Math.max(contentEndY + footerY, H - footerY));
 
   return canvas.toDataURL("image/png", 1.0);
 }
