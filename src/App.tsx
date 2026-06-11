@@ -23,6 +23,10 @@ import {
   deleteCustomCardsBySpaceId,
   hasAnyCardInReading,
   duplicateCustomCard,
+  batchDeleteCards,
+  batchMoveCards,
+  batchDuplicateCards,
+  checkStorageCapacity,
 } from "./data/cardStore";
 import {
   loadReading,
@@ -257,6 +261,27 @@ export default function App() {
     setCustomCards((prev) => addCustomCard(prev, newCard));
   }
 
+  function handleBatchDeleteCards(cardIds: string[], willResetReading: boolean) {
+    setCustomCards((prev) => batchDeleteCards(prev, cardIds));
+    if (willResetReading) {
+      handleClearReading();
+    }
+  }
+
+  function handleBatchMoveCards(cardIds: string[], targetSpaceId: string) {
+    setCustomCards((prev) => batchMoveCards(prev, cardIds, targetSpaceId));
+  }
+
+  function handleBatchCopyCards(cardIds: string[], targetSpaceId: string) {
+    const updated = batchDuplicateCards(customCards, cardIds, targetSpaceId);
+    const testData = JSON.stringify(updated);
+    if (!checkStorageCapacity(testData)) {
+      alert("存储空间不足，批量复制后可能超出限制。请删除部分牌或移除图片后重试。");
+      return;
+    }
+    setCustomCards(updated);
+  }
+
   function handleClearHistory() {
     clearHistory();
     setHistory([]);
@@ -435,6 +460,9 @@ export default function App() {
         onUpdateCard={handleUpdateCard}
         onDeleteCard={handleDeleteCard}
         onDuplicateCard={handleDuplicateCard}
+        onBatchDelete={handleBatchDeleteCards}
+        onBatchMove={handleBatchMoveCards}
+        onBatchCopy={handleBatchCopyCards}
       />
 
       <SpaceManager

@@ -89,6 +89,33 @@ export function duplicateCustomCard(card: Card, targetSpaceId: string): Card {
   };
 }
 
+export function batchDeleteCards(cards: Card[], cardIds: string[]): Card[] {
+  const idSet = new Set(cardIds);
+  return cards.filter((c) => !idSet.has(c.id));
+}
+
+export function batchMoveCards(cards: Card[], cardIds: string[], targetSpaceId: string): Card[] {
+  const idSet = new Set(cardIds);
+  return cards.map((c) => (idSet.has(c.id) ? { ...c, spaceId: targetSpaceId } : c));
+}
+
+export function batchDuplicateCards(
+  cards: Card[],
+  cardIds: string[],
+  targetSpaceId: string
+): Card[] {
+  const sourceCards = cards.filter((c) => cardIds.includes(c.id));
+  const newCards = sourceCards.map((card) => duplicateCustomCard(card, targetSpaceId));
+  return [...cards, ...newCards];
+}
+
+export function hasAnyCardsInReading(
+  cardIds: string[],
+  readingCardIds: string[]
+): boolean {
+  return cardIds.some((id) => readingCardIds.includes(id));
+}
+
 export function isCardInReading(cardId: string, cardIds: string[]): boolean {
   return cardIds.includes(cardId);
 }

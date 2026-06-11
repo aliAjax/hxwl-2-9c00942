@@ -1256,6 +1256,139 @@ h1 {
   transition: color 0.35s ease;
 }
 
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.batch-mode-toggle {
+  background: transparent;
+  border: 1px solid var(--border-medium);
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+}
+
+.batch-mode-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.batch-mode-toggle.active {
+  background: var(--accent);
+  color: var(--button-text);
+  border-color: var(--accent);
+}
+
+.select-all-button {
+  background: var(--surface-accent);
+  color: var(--accent);
+  border: 1px solid var(--border-medium);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.select-all-button:hover {
+  border-color: var(--accent);
+}
+
+.card-item-selected {
+  border-color: var(--accent) !important;
+  background: var(--surface-accent-light) !important;
+}
+
+.card-item-checkbox {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+
+.card-item-checkbox input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.batch-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 24px;
+  background: var(--surface-accent-light);
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 60px;
+  z-index: 1;
+}
+
+.batch-action-count {
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.batch-action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.batch-move-button,
+.batch-copy-button,
+.batch-delete-button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 0;
+  font-size: 0.85rem;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+}
+
+.batch-move-button {
+  background: var(--info);
+  color: var(--info-text);
+  border: 1px solid var(--info-border);
+}
+
+.batch-move-button:hover {
+  background: var(--info-hover);
+}
+
+.batch-copy-button {
+  background: var(--success, #4ca678);
+  color: #fff;
+  border: 1px solid var(--success-border, #3d8a62);
+}
+
+.batch-copy-button:hover {
+  background: var(--success-hover, #3d8a62);
+}
+
+.batch-delete-button {
+  background: var(--danger);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
+}
+
+.batch-delete-button:hover {
+  background: var(--danger-hover);
+}
+
 .card-form {
   padding: 24px;
 }
@@ -1476,7 +1609,8 @@ h1 {
   .modal-header,
   .deck-actions,
   .card-list,
-  .card-form {
+  .card-form,
+  .batch-action-bar {
     padding-left: 16px;
     padding-right: 16px;
   }
@@ -1498,6 +1632,20 @@ h1 {
   .form-row-inline {
     flex-direction: column;
     gap: 16px;
+  }
+
+  .batch-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .batch-action-buttons {
+    justify-content: stretch;
+  }
+
+  .batch-action-buttons button {
+    flex: 1;
   }
 }
 

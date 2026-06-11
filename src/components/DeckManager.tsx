@@ -7,8 +7,11 @@ import {
   validateCard,
   checkStorageCapacity,
   getCustomCardsForSpace,
+  hasAnyCardsInReading,
 } from "../data/cardStore";
 import { compressImage, isImageFile } from "../data/imageUtils";
+
+type BatchAction = "move" | "copy" | null;
 
 type DeckManagerProps = {
   customCards: Card[];
@@ -20,6 +23,9 @@ type DeckManagerProps = {
   onUpdateCard: (card: Card) => void;
   onDeleteCard: (cardId: string) => void;
   onDuplicateCard: (card: Card, targetSpaceId: string) => void;
+  onBatchDelete: (cardIds: string[], willResetReading: boolean) => void;
+  onBatchMove: (cardIds: string[], targetSpaceId: string) => void;
+  onBatchCopy: (cardIds: string[], targetSpaceId: string) => void;
 };
 
 export function DeckManager({
@@ -32,12 +38,19 @@ export function DeckManager({
   onUpdateCard,
   onDeleteCard,
   onDuplicateCard,
+  onBatchDelete,
+  onBatchMove,
+  onBatchCopy,
 }: DeckManagerProps) {
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [isNewCard, setIsNewCard] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [selectedSpaceId, setSelectedSpaceId] = useState<string>(DEFAULT_SPACE_ID);
   const [duplicatingCard, setDuplicatingCard] = useState<Card | null>(null);
+
+  const [isBatchMode, setIsBatchMode] = useState(false);
+  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
+  const [batchAction, setBatchAction] = useState<BatchAction>(null);
 
   if (!isOpen) return null;
 
@@ -50,11 +63,13 @@ export function DeckManager({
   };
 
   const handleEditCard = (card: Card) => {
+    if (isBatchMode) return;
     setEditingCard({ ...card });
     setIsNewCard(false);
   };
 
   const handleDuplicateCard = (card: Card) => {
+    if (isBatchMode) return;
     setDuplicatingCard(card);
   };
 
@@ -69,6 +84,7 @@ export function DeckManager({
   };
 
   const handleDeleteCard = (cardId: string) => {
+    if (isBatchMode) return;
     const isInTodayReading = readingCardIds.includes(cardId);
     let confirmMessage = "确定要删除这张牌吗？";
     if (isInTodayReading) {
@@ -147,14 +163,100 @@ export function DeckManager({
     }
   };
 
+  const handleToggleBatchMode = () => {
+    setIsBatchMode((prev) => !prev);
+    setSelectedCardIds(new Set());
+    setBatchAction(null);
+  };
+
+  const handleToggleSelectCard = (cardId: string) => {
+    setSelectedCardIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardId)) {
+        next.delete(cardId);
+      } else {
+        next.add(cardId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    const allIds = spaceCustomCards.map((c) => c.id);
+    const allSelected = allIds.length > 0 && allIds.every((id) => selectedCardIds.has(id));
+    if (allSelected) {
+      setSelectedCardIds(new Set());
+    } else {
+      setSelectedCardIds(new Set(allIds));
+    }
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedCardIds.size === 0) return;
+    const ids = Array.from(selectedCardIds);
+    const willResetReading = hasAnyCardsInReading(ids, readingCardIds);
+    let msg = `确定要删除选中的 ${ids.length} 张牌吗？`;
+    if (willResetReading) {
+      msg = `选中的牌中有在今日抽牌结果中的牌，删除后今日牌面将重置。确定要删除这 ${ids.length} 张牌吗？`;
+    }
+    if (confirm(msg)) {
+      onBatchDelete(ids, willResetReading);
+      setSelectedCardIds(new Set());
+      if (willResetReading) {
+        setIsBatchMode(false);
+        setBatchAction(null);
+        onClose();
+      }
+    }
+  };
+
+  const handleBatchMoveStart = () => {
+    if (selectedCardIds.size === 0) return;
+    setBatchAction("move");
+  };
+
+  const handleBatchCopyStart = () => {
+    if (selectedCardIds.size === 0) return;
+    setBatchAction("copy");
+  };
+
+  const handleBatchActionConfirm = (targetSpaceId: string) => {
+    const ids = Array.from(selectedCardIds);
+    if (batchAction === "move") {
+      onBatchMove(ids, targetSpaceId);
+    } else if (batchAction === "copy") {
+      onBatchCopy(ids, targetSpaceId);
+    }
+    setSelectedCardIds(new Set());
+    setBatchAction(null);
+  };
+
+  const handleBatchActionCancel = () => {
+    setBatchAction(null);
+  };
+
+  const exitBatchMode = () => {
+    setIsBatchMode(false);
+    setSelectedCardIds(new Set());
+    setBatchAction(null);
+  };
+
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>牌库管理</h2>
-          <button className="modal-close" onClick={onClose}>
-            ×
-          </button>
+          <div className="modal-header-actions">
+            <button
+              className={`batch-mode-toggle ${isBatchMode ? "active" : ""}`}
+              onClick={handleToggleBatchMode}
+            >
+              {isBatchMode ? "退出批量" : "批量管理"}
+            </button>
+            <button className="modal-close" onClick={isBatchMode ? exitBatchMode : onClose}>
+              ×
+            </button>
+          </div>
         </div>
 
         {editingCard ? (
@@ -177,6 +279,15 @@ export function DeckManager({
             onConfirm={handleConfirmDuplicate}
             onCancel={handleCancelDuplicate}
           />
+        ) : batchAction ? (
+          <BatchSpaceSelectModal
+            action={batchAction}
+            selectedCount={selectedCardIds.size}
+            spaces={spaces}
+            currentSpaceId={selectedSpaceId}
+            onConfirm={handleBatchActionConfirm}
+            onCancel={handleBatchActionCancel}
+          />
         ) : (
           <>
             <div className="space-tabs">
@@ -186,7 +297,10 @@ export function DeckManager({
                   className={`space-tab ${
                     selectedSpaceId === space.id ? "active" : ""
                   }`}
-                  onClick={() => setSelectedSpaceId(space.id)}
+                  onClick={() => {
+                    setSelectedSpaceId(space.id);
+                    setSelectedCardIds(new Set());
+                  }}
                 >
                   <span className="space-tab-icon">{space.icon}</span>
                   <span className="space-tab-name">{space.name}</span>
@@ -199,10 +313,17 @@ export function DeckManager({
             <CardList
               customCards={spaceCustomCards}
               currentSpace={currentSpace}
+              isBatchMode={isBatchMode}
+              selectedCardIds={selectedCardIds}
               onAddCard={handleAddCard}
               onEditCard={handleEditCard}
               onDeleteCard={handleDeleteCard}
               onDuplicateCard={handleDuplicateCard}
+              onToggleSelectCard={handleToggleSelectCard}
+              onSelectAll={handleSelectAll}
+              onBatchDelete={handleBatchDelete}
+              onBatchMove={handleBatchMoveStart}
+              onBatchCopy={handleBatchCopyStart}
             />
           </>
         )}
@@ -214,26 +335,48 @@ export function DeckManager({
 function CardList({
   customCards,
   currentSpace,
+  isBatchMode,
+  selectedCardIds,
   onAddCard,
   onEditCard,
   onDeleteCard,
   onDuplicateCard,
+  onToggleSelectCard,
+  onSelectAll,
+  onBatchDelete,
+  onBatchMove,
+  onBatchCopy,
 }: {
   customCards: Card[];
   currentSpace?: Space;
+  isBatchMode: boolean;
+  selectedCardIds: Set<string>;
   onAddCard: () => void;
   onEditCard: (card: Card) => void;
   onDeleteCard: (cardId: string) => void;
   onDuplicateCard: (card: Card) => void;
+  onToggleSelectCard: (cardId: string) => void;
+  onSelectAll: () => void;
+  onBatchDelete: () => void;
+  onBatchMove: () => void;
+  onBatchCopy: () => void;
 }) {
   const showAddButton = !currentSpace?.isDefault || true;
+  const allSelected = customCards.length > 0 && customCards.every((c) => selectedCardIds.has(c.id));
 
   return (
     <>
       <div className="deck-actions">
-        <button className="add-card-button" onClick={onAddCard} disabled={!showAddButton}>
-          + 新增自定义牌
-        </button>
+        {!isBatchMode && (
+          <button className="add-card-button" onClick={onAddCard} disabled={!showAddButton}>
+            + 新增自定义牌
+          </button>
+        )}
+        {isBatchMode && customCards.length > 0 && (
+          <button className="select-all-button" onClick={onSelectAll}>
+            {allSelected ? "取消全选" : "全选"}
+          </button>
+        )}
         {currentSpace && (
           <span className="deck-space-info">
             {currentSpace.icon} 「{currentSpace.name}」空间
@@ -241,6 +384,23 @@ function CardList({
           </span>
         )}
       </div>
+
+      {isBatchMode && selectedCardIds.size > 0 && (
+        <div className="batch-action-bar">
+          <span className="batch-action-count">已选 {selectedCardIds.size} 张牌</span>
+          <div className="batch-action-buttons">
+            <button className="batch-move-button" onClick={onBatchMove}>
+              移动到…
+            </button>
+            <button className="batch-copy-button" onClick={onBatchCopy}>
+              复制到…
+            </button>
+            <button className="batch-delete-button" onClick={onBatchDelete}>
+              删除
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="card-list">
         <h3 className="card-section-title">默认牌组（所有空间共享）</h3>
@@ -272,7 +432,21 @@ function CardList({
           <p className="empty-custom">还没有自定义牌，点击上方按钮添加</p>
         ) : (
           customCards.map((card) => (
-            <div key={card.id} className="card-item">
+            <div
+              key={card.id}
+              className={`card-item ${isBatchMode && selectedCardIds.has(card.id) ? "card-item-selected" : ""}`}
+              onClick={isBatchMode ? () => onToggleSelectCard(card.id) : undefined}
+            >
+              {isBatchMode && (
+                <div className="card-item-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={selectedCardIds.has(card.id)}
+                    onChange={() => onToggleSelectCard(card.id)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+              )}
               <CardGlyph card={card} className="card-item-glyph" size="small" />
               <div className="card-item-info">
                 <h4>{card.name}</h4>
@@ -281,22 +455,96 @@ function CardList({
                 </span>
                 <p>{card.meaning}</p>
               </div>
-              <div className="card-item-actions">
-                <button className="edit-button" onClick={() => onEditCard(card)}>
-                  编辑
-                </button>
-                <button className="copy-button" onClick={() => onDuplicateCard(card)}>
-                  复制
-                </button>
-                <button className="delete-button" onClick={() => onDeleteCard(card.id)}>
-                  删除
-                </button>
-              </div>
+              {!isBatchMode && (
+                <div className="card-item-actions">
+                  <button className="edit-button" onClick={() => onEditCard(card)}>
+                    编辑
+                  </button>
+                  <button className="copy-button" onClick={() => onDuplicateCard(card)}>
+                    复制
+                  </button>
+                  <button className="delete-button" onClick={() => onDeleteCard(card.id)}>
+                    删除
+                  </button>
+                </div>
+              )}
             </div>
           ))
         )}
       </div>
     </>
+  );
+}
+
+function BatchSpaceSelectModal({
+  action,
+  selectedCount,
+  spaces,
+  currentSpaceId,
+  onConfirm,
+  onCancel,
+}: {
+  action: BatchAction;
+  selectedCount: number;
+  spaces: Space[];
+  currentSpaceId: string;
+  onConfirm: (targetSpaceId: string) => void;
+  onCancel: () => void;
+}) {
+  const [selectedTargetSpaceId, setSelectedTargetSpaceId] = useState<string>(
+    spaces.find((s) => s.id !== currentSpaceId)?.id ?? spaces[0]?.id ?? ""
+  );
+
+  const availableSpaces = spaces.filter((s) => s.id !== currentSpaceId);
+  const actionLabel = action === "move" ? "移动" : "复制";
+
+  return (
+    <div className="card-form">
+      <h3>{actionLabel} {selectedCount} 张牌到其他空间</h3>
+
+      <div className="form-row">
+        <label>选择目标空间</label>
+        {availableSpaces.length === 0 ? (
+          <p className="empty-custom">没有其他可用的空间，请先创建新空间</p>
+        ) : (
+          <div className="space-select-list">
+            {availableSpaces.map((space) => (
+              <label
+                key={space.id}
+                className={`space-select-item ${
+                  selectedTargetSpaceId === space.id ? "selected" : ""
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="batchTargetSpace"
+                  value={space.id}
+                  checked={selectedTargetSpaceId === space.id}
+                  onChange={() => setSelectedTargetSpaceId(space.id)}
+                  style={{ display: "none" }}
+                />
+                <span className="space-select-icon">{space.icon}</span>
+                <span className="space-select-name">{space.name}</span>
+                {space.isDefault && <span className="default-badge">默认</span>}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="form-actions">
+        <button className="cancel-button" onClick={onCancel}>
+          取消
+        </button>
+        <button
+          className="save-button"
+          onClick={() => onConfirm(selectedTargetSpaceId)}
+          disabled={availableSpaces.length === 0}
+        >
+          确认{actionLabel}
+        </button>
+      </div>
+    </div>
   );
 }
 
