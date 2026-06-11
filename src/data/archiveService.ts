@@ -28,6 +28,7 @@ export function checkAndArchive(): ArchiveResult {
   const customCards = loadCustomCards();
   const allCards = getAllCards(customCards);
   const positions = getPositions(rawReading.spreadId);
+  const spread = getSpreadById(rawReading.spreadId);
   const history = loadHistory();
   const spaces = loadSpaces();
   const space = rawReading.spaceId
@@ -44,20 +45,20 @@ export function checkAndArchive(): ArchiveResult {
     discarded = 1;
     clearReading();
   } else if (revealedCount >= totalCards) {
-    const record = createArchivedRecord(rawReading, allCards, positions, "completed", space);
+    const record = createArchivedRecord(rawReading, allCards, positions, "completed", spread, space);
     const updatedHistory = addRecord(history, record);
     saveHistory(updatedHistory);
     archivedRecords = [record];
     clearReading();
   } else {
-    const record = createArchivedRecord(rawReading, allCards, positions, "partial", space);
+    const record = createArchivedRecord(rawReading, allCards, positions, "partial", spread, space);
     const updatedHistory = addRecord(history, record);
     saveHistory(updatedHistory);
     archivedRecords = [record];
     clearReading();
   }
 
-  const message = buildArchiveMessage(archivedRecords, discarded, rawReading, space);
+  const message = buildArchiveMessage(archivedRecords, discarded, spread, space);
 
   return {
     archived: archivedRecords,
@@ -69,20 +70,19 @@ export function checkAndArchive(): ArchiveResult {
 function buildArchiveMessage(
   archived: HistoryRecord[],
   discarded: number,
-  reading: Reading,
+  spread: { name: string },
   space?: Space
 ): string {
-  const spread = getSpreadById(reading.spreadId);
-  const dateLabel = reading.date;
   const spaceLabel = space ? `「${space.name}」` : "";
 
   if (discarded > 0) {
-    return `${spaceLabel}${dateLabel} 的 ${spread.name} 未翻开任何牌，已自动清除`;
+    return `${spaceLabel}过期的 ${spread.name} 未翻开任何牌，已自动清除`;
   }
 
   if (archived.length > 0) {
     const record = archived[0];
     const reasonText = record.archiveReason === "completed" ? "已完成" : "部分翻开";
+    const dateLabel = record.date;
     return `${spaceLabel}${dateLabel} 的 ${spread.name}（${reasonText}）已归档到历史记录`;
   }
 

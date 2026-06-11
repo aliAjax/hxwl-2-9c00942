@@ -1,13 +1,15 @@
 import { useState, useMemo } from "react";
 import { CardGlyph } from "./CardGlyph";
-import type { HistoryRecord, Space } from "../types";
-import { getSpreadById, getAllSpreads } from "../data/spreadStore";
+import type { HistoryRecord, Space, Spread, SpreadSnapshot } from "../types";
+import { getAllSpreads } from "../data/spreadStore";
+import { getSpreadForHistory } from "../data/historyStore";
 import { formatDate } from "../data/dateUtils";
 import { DEFAULT_SPACE_ID } from "../data/constants";
 
 type HistoryPanelProps = {
   history: HistoryRecord[];
   spaces: Space[];
+  customSpreads: Spread[];
   isOpen: boolean;
   onToggle: () => void;
   onClearHistory: () => void;
@@ -16,16 +18,42 @@ type HistoryPanelProps = {
 const ALL_SPACES_ID = "__all_spaces__";
 const ALL_SPREADS_ID = "__all_spreads__";
 
+type SpreadFilterOption = {
+  id: string;
+  name: string;
+  icon: string;
+  isDeleted?: boolean;
+};
+
 export function HistoryPanel({
   history,
   spaces,
+  customSpreads,
   isOpen,
   onToggle,
   onClearHistory,
 }: HistoryPanelProps) {
   const [selectedSpaceId, setSelectedSpaceId] = useState<string>(ALL_SPACES_ID);
   const [selectedSpreadId, setSelectedSpreadId] = useState<string>(ALL_SPREADS_ID);
-  const spreads = getAllSpreads();
+  const allSpreads = getAllSpreads(customSpreads);
+
+  const spreadFilterOptions = useMemo<SpreadFilterOption[]>(() => {
+    const options = new Map<string, SpreadFilterOption>();
+    allSpreads.forEach((s) => {
+      options.set(s.id, { id: s.id, name: s.name, icon: s.icon });
+    });
+    history.forEach((record) => {
+      if (record.spreadSnapshot && !options.has(record.spreadSnapshot.id)) {
+        options.set(record.spreadSnapshot.id, {
+          id: record.spreadSnapshot.id,
+          name: record.spreadSnapshot.name,
+          icon: record.spreadSnapshot.icon,
+          isDeleted: (record.spreadSnapshot as SpreadSnapshot).isDeleted,
+        });
+      }
+    });
+    return Array.from(options.values());
+  }, [history, allSpreads]);
 
   const filteredHistory = useMemo(() => {
     return history.filter((record) => {
@@ -33,8 +61,9 @@ export function HistoryPanel({
         selectedSpaceId === ALL_SPACES_ID ||
         record.spaceId === selectedSpaceId ||
         (!record.spaceId && selectedSpaceId === DEFAULT_SPACE_ID);
+      const recordSpreadId = record.spreadSnapshot?.id ?? record.spreadId;
       const spreadMatch =
-        selectedSpreadId === ALL_SPREADS_ID || record.spreadId === selectedSpreadId;
+        selectedSpreadId === ALL_SPREADS_ID || recordSpreadId === selectedSpreadId;
       return spaceMatch && spreadMatch;
     });
   }, [history, selectedSpaceId, selectedSpreadId]);
@@ -100,13 +129,17 @@ export function HistoryPanel({
                   >
                     全部
                   </button>
-                  {spreads.map((spread) => (
+                  {spreadFilterOptions.map((opt) => (
                     <button
-                      key={spread.id}
-                      className={`history-filter-chip ${selectedSpreadId === spread.id ? "active" : ""}`}
-                      onClick={() => setSelectedSpreadId(spread.id)}
+                      key={opt.id}
+                      className={`history-filter-chip ${selectedSpreadId === opt.id ? "active" : ""} ${
+                        opt.isDeleted ? "deleted-option" : ""
+                      }`}
+                      onClick={() => setSelectedSpreadId(opt.id)}
+                      title={opt.isDeleted ? "该牌阵已删除，显示历史快照" : undefined}
                     >
-                      {spread.icon} {spread.name}
+                      {opt.icon} {opt.name}
+                      {opt.isDeleted && <span className="chip-deleted-mark"> (已删)</span>}
                     </button>
                   ))}
                 </div>
@@ -150,7 +183,9 @@ function HistoryItem({
   spaces: Space[];
 }) {
   const [expanded, setExpanded] = useState(false);
-  const spread = record.spreadId ? getSpreadById(record.spreadId) : null;
+  const spread = getSpreadForHistory(record);
+  const spreadIsDeleted = (spread as SpreadSnapshot).isDeleted;
+
   const space = record.spaceId
     ? spaces.find((s) => s.id === record.spaceId)
     : undefined;
@@ -161,7 +196,7 @@ function HistoryItem({
     : { name: record.spaceName || "已删除空间", icon: "📦" };
 
   return (
-    <div className="history-item">
+    <div className={`history-item ${spreadIsDeleted ? "has-deleted-spread" : ""}`}>
       <button
         className="history-item-header"
         onClick={() => setExpanded(!expanded)}
@@ -170,8 +205,13 @@ function HistoryItem({
           <span className="history-item-date">{formatDate(record.date)}</span>
           <div className="history-item-meta">
             {spread && (
-              <span className="history-item-spread">
+              <span className={`history-item-spread ${spreadIsDeleted ? "spread-deleted" : ""}`}>
                 {spread.icon} {spread.name}
+                {spreadIsDeleted && (
+                  <span className="spread-deleted-hint" title="该牌阵已删除，显示当时的快照">
+                    (已删除)
+                  </span>
+                )}
               </span>
             )}
             <span className="history-item-space">
@@ -206,6 +246,15 @@ function HistoryItem({
             <div className="history-question">
               <span className="history-question-label">问</span>
               <p className="history-question-text">{record.question}</p>
+            </div>
+          )}
+          {spreadIsDeleted && (
+            <div className="spread-deleted-notice">
+              <span className="spread-deleted-icon">📦</span>
+              <span>
+                此牌阵已被删除，这里显示的是抽牌当时的牌阵信息快照（
+                {spread.positions.length}个位置）。
+              </span>
             </div>
           )}
           {record.cards.map((card, index) => (

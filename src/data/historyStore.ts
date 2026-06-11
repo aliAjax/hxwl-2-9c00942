@@ -1,11 +1,13 @@
-import type { HistoryRecord, Reading, Card, HistoryCard, Space } from "../types";
+import type { HistoryRecord, Reading, Card, HistoryCard, Space, Spread, SpreadSnapshot } from "../types";
 import {
   STORAGE_KEYS,
   DEFAULT_SPACE_ID,
   CURRENT_MIGRATION_VERSION,
   DELETED_CARD_PLACEHOLDER,
+  DELETED_SPREAD_PLACEHOLDER,
 } from "./constants";
 import { safeGetItem, safeSetItem, safeRemoveItem } from "./storage";
+import { getSpreadOrPlaceholder, getSnapshot } from "./spreadStore";
 
 export function loadHistory(): HistoryRecord[] {
   const raw = safeGetItem<HistoryRecord[] | null>(STORAGE_KEYS.history, null);
@@ -14,14 +16,26 @@ export function loadHistory(): HistoryRecord[] {
   }
   const migratedVersion = safeGetItem<number>(STORAGE_KEYS.migrationVersion, 0);
   if (migratedVersion < CURRENT_MIGRATION_VERSION) {
-    const migrated = raw.map((record) => ({
-      ...record,
-      spaceId: record.spaceId || DEFAULT_SPACE_ID,
-      cards: record.cards.map((card) => ({
-        ...card,
-        isDeleted: card.isDeleted || false,
-      })),
-    }));
+    const migrated = raw.map((record) => {
+      const base: HistoryRecord = {
+        ...record,
+        spaceId: record.spaceId || DEFAULT_SPACE_ID,
+        cards: record.cards.map((card) => ({
+          ...card,
+          isDeleted: card.isDeleted || false,
+        })),
+      };
+      if (migratedVersion < 3) {
+        if (!base.spreadSnapshot && base.spreadId) {
+          const spread = getSpreadOrPlaceholder(base.spreadId);
+          base.spreadSnapshot = {
+            ...getSnapshot(spread),
+            isDeleted: (spread as SpreadSnapshot).isDeleted,
+          };
+        }
+      }
+      return base;
+    });
     safeSetItem(STORAGE_KEYS.history, migrated);
     return migrated;
   }
@@ -52,9 +66,10 @@ export function addReadingToHistory(
   reading: Reading,
   cards: Card[],
   positions: string[],
+  spread: Spread | SpreadSnapshot,
   space?: Space
 ): HistoryRecord[] {
-  const record = readingToHistoryRecord(reading, cards, positions, space);
+  const record = readingToHistoryRecord(reading, cards, positions, spread, space);
   return addRecord(history, record);
 }
 
@@ -62,6 +77,7 @@ export function readingToHistoryRecord(
   reading: Reading,
   cards: Card[],
   positions: string[],
+  spread: Spread | SpreadSnapshot,
   space?: Space
 ): HistoryRecord {
   const cardMap = new Map(cards.map((c) => [c.id, c]));
@@ -95,12 +111,11 @@ export function readingToHistoryRecord(
     cards: historyCards,
     spaceId: reading.spaceId || DEFAULT_SPACE_ID,
     spaceName: space?.name,
+    spreadId: reading.spreadId,
+    spreadSnapshot: getSnapshot(spread),
   };
   if (reading.question) {
     record.question = reading.question;
-  }
-  if (reading.spreadId) {
-    record.spreadId = reading.spreadId;
   }
   return record;
 }
@@ -110,9 +125,10 @@ export function createArchivedRecord(
   cards: Card[],
   positions: string[],
   reason: "completed" | "partial" | "expired",
+  spread: Spread | SpreadSnapshot,
   space?: Space
 ): HistoryRecord {
-  const baseRecord = readingToHistoryRecord(reading, cards, positions, space);
+  const baseRecord = readingToHistoryRecord(reading, cards, positions, spread, space);
   return {
     ...baseRecord,
     archived: true,
@@ -125,4 +141,14 @@ export function getHistoryBySpace(
   spaceId: string
 ): HistoryRecord[] {
   return history.filter((record) => record.spaceId === spaceId || !record.spaceId);
+}
+
+export function getSpreadForHistory(record: HistoryRecord): Spread | SpreadSnapshot {
+  if (record.spreadSnapshot) {
+    return record.spreadSnapshot;
+  }
+  if (record.spreadId) {
+    return getSpreadOrPlaceholder(record.spreadId);
+  }
+  return DELETED_SPREAD_PLACEHOLDER;
 }

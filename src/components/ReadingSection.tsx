@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { getAllSpreads, getSpreadById } from "../data/spreadStore";
 import { SpaceSelector } from "./SpaceSelector";
-import type { Space } from "../types";
+import type { Space, Spread } from "../types";
 
 type ReadingSectionProps = {
   selectedSpreadId: string;
   selectedSpaceId: string;
   spaces: Space[];
+  customSpreads: Spread[];
   question: string;
   hasReading: boolean;
   isReadingComplete: boolean;
@@ -17,12 +18,14 @@ type ReadingSectionProps = {
   onStartReading: () => void;
   onRestartReading: () => void;
   onManageSpaces: () => void;
+  onManageSpreads: () => void;
 };
 
 export function ReadingSection({
   selectedSpreadId,
   selectedSpaceId,
   spaces,
+  customSpreads,
   question,
   hasReading,
   isReadingComplete,
@@ -33,9 +36,10 @@ export function ReadingSection({
   onStartReading,
   onRestartReading,
   onManageSpaces,
+  onManageSpreads,
 }: ReadingSectionProps) {
-  const spreads = getAllSpreads();
-  const currentSpread = getSpreadById(selectedSpreadId);
+  const spreads = getAllSpreads(customSpreads);
+  const currentSpread = getSpreadById(selectedSpreadId, customSpreads);
   const positionCount = currentSpread.positions.length;
   const readingSpace = readingSpaceId
     ? spaces.find((s) => s.id === readingSpaceId)
@@ -71,7 +75,17 @@ export function ReadingSection({
               onManageSpaces={onManageSpaces}
             />
             <div className="spread-section">
-              <label className="question-label">选择牌阵</label>
+              <div className="spread-section-header">
+                <label className="question-label">选择牌阵</label>
+                <button
+                  className="spread-manage-button"
+                  onClick={onManageSpreads}
+                  disabled={hasReading}
+                  title="管理牌阵"
+                >
+                  ⚙ 管理牌阵
+                </button>
+              </div>
               <div className="spread-options">
                 {spreads.map((spread) => (
                   <button
@@ -87,6 +101,9 @@ export function ReadingSection({
                       <div className="spread-name">{spread.name}</div>
                       <div className="spread-subtitle">{spread.subtitle}</div>
                     </div>
+                    {spread.isCustom && (
+                      <span className="spread-custom-badge">自定义</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -108,6 +125,7 @@ export function ReadingSection({
         {hasReading && (
           <ReadingDisplay
             spreadId={selectedSpreadId}
+            customSpreads={customSpreads}
             question={question}
             space={readingSpace}
           />
@@ -177,14 +195,16 @@ export function ReadingSection({
 
 function ReadingDisplay({
   spreadId,
+  customSpreads,
   question,
   space,
 }: {
   spreadId: string;
+  customSpreads: Spread[];
   question?: string;
   space?: Space;
 }) {
-  const spread = getSpreadById(spreadId);
+  const spread = getSpreadById(spreadId, customSpreads);
   const totalCards = spread.positions.length;
 
   return (
@@ -193,6 +213,9 @@ function ReadingDisplay({
         <span className="spread-display-icon">{spread.icon}</span>
         <span className="spread-display-name">{spread.name}</span>
         <span className="spread-display-count">{totalCards}张牌</span>
+        {spread.isCustom && (
+          <span className="spread-custom-badge spread-display-badge">自定义</span>
+        )}
         {space && (
           <span className="spread-display-space">
             {space.icon} {space.name}

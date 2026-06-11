@@ -8,6 +8,7 @@ import { HistoryPanel } from "./components/HistoryPanel";
 import { ShareModal } from "./components/ShareModal";
 import { generateShareImage } from "./components/ShareModal";
 import { SpaceManager } from "./components/SpaceSelector";
+import { SpreadManager } from "./components/SpreadManager";
 import { loadTheme, saveTheme, applyTheme } from "./data/themeStore";
 import {
   loadCustomCards,
@@ -38,7 +39,19 @@ import {
   clearHistory,
   addReadingToHistory,
 } from "./data/historyStore";
-import { getSpreadById, getPositions, getPositionCount } from "./data/spreadStore";
+import {
+  getSpreadById,
+  getPositions,
+  getPositionCount,
+  getAllSpreads,
+  loadCustomSpreads,
+  saveCustomSpreads,
+  addCustomSpread,
+  updateCustomSpread,
+  deleteCustomSpread,
+  isPresetSpread,
+  getSnapshot,
+} from "./data/spreadStore";
 import {
   loadSpaces,
   saveSpaces,
@@ -53,7 +66,7 @@ import {
 import { checkAndArchive } from "./data/archiveService";
 import { todayKey } from "./data/dateUtils";
 import { DEFAULT_SPREAD_ID, DEFAULT_SPACE_ID, DELETED_CARD_PLACEHOLDER } from "./data/constants";
-import type { ThemeId, Reading, Card, HistoryRecord, ArchiveResult, Space } from "./types";
+import type { ThemeId, Reading, Card, HistoryRecord, ArchiveResult, Space, Spread } from "./types";
 
 export default function App() {
   const [theme, setTheme] = useState<ThemeId>(loadTheme);
@@ -62,9 +75,11 @@ export default function App() {
   const [history, setHistory] = useState<HistoryRecord[]>(loadHistory);
   const [spaces, setSpaces] = useState<Space[]>(loadSpaces);
   const [currentSpaceId, setCurrentSpaceId] = useState<string>(loadCurrentSpaceId);
+  const [customSpreads, setCustomSpreads] = useState<Spread[]>(loadCustomSpreads);
 
   const [showDeckManager, setShowDeckManager] = useState(false);
   const [showSpaceManager, setShowSpaceManager] = useState(false);
+  const [showSpreadManager, setShowSpreadManager] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
@@ -96,13 +111,27 @@ export default function App() {
     saveCurrentSpaceId(currentSpaceId);
   }, [currentSpaceId]);
 
+  useEffect(() => {
+    saveCustomSpreads(customSpreads);
+  }, [customSpreads]);
+
+  useEffect(() => {
+    const allSpreadIds = getAllSpreads(customSpreads).map((s) => s.id);
+    if (!allSpreadIds.includes(selectedSpreadId)) {
+      setSelectedSpreadId(DEFAULT_SPREAD_ID);
+    }
+  }, [customSpreads, selectedSpreadId]);
+
   const handleThemeChange = useCallback((themeId: ThemeId) => {
     setTheme(themeId);
     applyTheme(themeId);
     saveTheme(themeId);
   }, []);
 
-  const currentSpread = getSpreadById(reading?.spreadId ?? selectedSpreadId);
+  const currentSpread = getSpreadById(
+    reading?.spreadId ?? selectedSpreadId,
+    customSpreads
+  );
   const currentPositions = currentSpread.positions;
   const totalCards = currentPositions.length;
   const currentSpace = getSpaceById(spaces, currentSpaceId) ?? spaces[0];
@@ -147,7 +176,8 @@ export default function App() {
       archivedReadingRef.current !== reading.date
     ) {
       archivedReadingRef.current = reading.date;
-      const positions = getPositions(reading.spreadId);
+      const positions = getPositions(reading.spreadId, customSpreads);
+      const spreadForHistory = getSpreadById(reading.spreadId, customSpreads);
       const spaceForHistory = reading.spaceId
         ? getSpaceById(spaces, reading.spaceId)
         : undefined;
@@ -160,17 +190,18 @@ export default function App() {
           reading,
           cardsToUse,
           positions,
+          spreadForHistory,
           spaceForHistory
         );
         saveHistory(updatedHistory);
         return updatedHistory;
       });
     }
-  }, [reading, selectedCards, totalCards, customCards, allCards, spaces]);
+  }, [reading, selectedCards, totalCards, customCards, allCards, spaces, customSpreads]);
 
   function handleStartReading() {
     archivedReadingRef.current = null;
-    const positionsCount = getPositionCount(selectedSpreadId);
+    const positionsCount = getPositionCount(selectedSpreadId, customSpreads);
     const cardsForSpace = getCardsForSpace(customCards, currentSpaceId);
     const next = createReading(
       cardsForSpace,
@@ -271,6 +302,29 @@ export default function App() {
     setCurrentSpaceId(spaceId);
   }
 
+  function handleAddSpread(spread: Spread) {
+    setCustomSpreads((prev) => addCustomSpread(prev, spread));
+    setSelectedSpreadId(spread.id);
+  }
+
+  function handleUpdateSpread(spread: Spread) {
+    setCustomSpreads((prev) => updateCustomSpread(prev, spread));
+  }
+
+  function handleDeleteSpread(spreadId: string): boolean {
+    if (isPresetSpread(spreadId)) {
+      return false;
+    }
+    setCustomSpreads((prev) => deleteCustomSpread(prev, spreadId));
+    if (selectedSpreadId === spreadId) {
+      setSelectedSpreadId(DEFAULT_SPREAD_ID);
+    }
+    if (reading?.spreadId === spreadId) {
+      handleClearReading();
+    }
+    return true;
+  }
+
   async function handleGenerateShare(): Promise<string> {
     setIsGeneratingShare(true);
     try {
@@ -314,6 +368,7 @@ export default function App() {
         selectedSpreadId={selectedSpreadId}
         selectedSpaceId={currentSpaceId}
         spaces={spaces}
+        customSpreads={customSpreads}
         question={question}
         hasReading={!!reading}
         isReadingComplete={reading ? isReadingComplete(reading, totalCards) : false}
@@ -324,6 +379,7 @@ export default function App() {
         onStartReading={handleStartReading}
         onRestartReading={handleRestartReading}
         onManageSpaces={() => setShowSpaceManager(true)}
+        onManageSpreads={() => setShowSpreadManager(true)}
       />
 
       {reading && (
@@ -360,6 +416,7 @@ export default function App() {
       <HistoryPanel
         history={history}
         spaces={spaces}
+        customSpreads={customSpreads}
         isOpen={showHistory}
         onToggle={() => setShowHistory(!showHistory)}
         onClearHistory={handleClearHistory}
@@ -384,6 +441,15 @@ export default function App() {
         onAddSpace={handleAddSpace}
         onUpdateSpace={handleUpdateSpace}
         onDeleteSpace={handleDeleteSpace}
+      />
+
+      <SpreadManager
+        customSpreads={customSpreads}
+        isOpen={showSpreadManager}
+        onClose={() => setShowSpreadManager(false)}
+        onAddSpread={handleAddSpread}
+        onUpdateSpread={handleUpdateSpread}
+        onDeleteSpread={handleDeleteSpread}
       />
 
       <ShareModal

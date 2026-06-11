@@ -13,6 +13,18 @@ export type Spread = {
   description: string;
   positions: string[];
   icon: string;
+  isCustom?: boolean;
+  createdAt?: string;
+};
+
+export type SpreadSnapshot = {
+  id: string;
+  name: string;
+  subtitle: string;
+  description: string;
+  positions: string[];
+  icon: string;
+  isDeleted?: boolean;
 };
 
 export type Space = {
@@ -60,6 +72,7 @@ export type HistoryRecord = {
   cards: HistoryCard[];
   question?: string;
   spreadId?: string;
+  spreadSnapshot?: SpreadSnapshot;
   spaceId?: string;
   spaceName?: string;
   archived?: boolean;

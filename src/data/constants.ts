@@ -1,4 +1,4 @@
-import type { Theme, Spread, Card, Space, HistoryCard } from "../types";
+import type { Theme, Spread, Card, Space, HistoryCard, SpreadSnapshot } from "../types";
 
 export const THEMES: Theme[] = [
   { id: "night-market", name: "夜市", icon: "🌙" },
@@ -17,6 +17,7 @@ export const SPREADS: Spread[] = [
     description: "抽一张牌，快速获得今日指引",
     positions: ["今日指引"],
     icon: "✨",
+    isCustom: false,
   },
   {
     id: "three-card",
@@ -25,6 +26,7 @@ export const SPREADS: Spread[] = [
     description: "经典三张牌阵，看清问题全貌",
     positions: ["事件", "阻碍", "建议"],
     icon: "🎴",
+    isCustom: false,
   },
   {
     id: "five-card",
@@ -33,8 +35,26 @@ export const SPREADS: Spread[] = [
     description: "五张牌深度解读，探寻更多维度",
     positions: ["过去", "现在", "未来", "核心", "指引"],
     icon: "🌟",
+    isCustom: false,
   },
 ];
+
+export const SPREAD_ICON_OPTIONS = [
+  "✨", "🎴", "🌟", "🔮", "🌙", "⭐", "💫", "🎯",
+  "🌸", "🍀", "🌿", "🔥", "💧", "🌊", "☀️", "🌈",
+  "🦋", "🌺", "🍂", "❄️", "⚡", "🎪", "🎭", "📜",
+];
+
+export const DELETED_SPREAD_PLACEHOLDER: SpreadSnapshot & Spread = {
+  id: "deleted-spread-placeholder",
+  name: "（此牌阵已删除）",
+  subtitle: "已删除",
+  description: "该自定义牌阵已被删除，这里显示的是抽牌当时的快照。",
+  positions: [],
+  icon: "📦",
+  isDeleted: true,
+  isCustom: true,
+};
 
 export const DEFAULT_SPREAD_ID = "three-card";
 
@@ -99,9 +119,10 @@ export const STORAGE_KEYS = {
   spaces: "hxwl-2-spaces",
   currentSpaceId: "hxwl-2-current-space",
   migrationVersion: "hxwl-2-migration-version",
+  customSpreads: "hxwl-2-custom-spreads",
 } as const;
 
-export const CURRENT_MIGRATION_VERSION = 2;
+export const CURRENT_MIGRATION_VERSION = 3;
 
 export const EMPTY_CARD_TEMPLATE: Card = {
   id: "",
